@@ -97,7 +97,7 @@ FL.CLP
 
 **MAX files:**
 ```bash
-python3 main.py extract CCMAX.DSK GIRL1.MAX output.png
+python3 main.py extract CCMAX.DSK TITLE.MAX output.png
 ```
 
 **CM3 files:**
@@ -108,6 +108,7 @@ python3 main.py extract CM3PIC01.DSK Jinx.CM3 output.png
 **CLP files:**
 ```bash
 python3 main.py extract CLIPART1.DSK AL.CLP output.png
+python3 main.py extract CLIPART2.dsk GORILLA.CLP gorilla.png
 ```
 
 ### Using coco_dsk.py Standalone
@@ -129,38 +130,119 @@ python3 coco_dsk.py mydisk.dsk -p program.bin -n PROG.BIN -t 2
 
 The repository includes sample disk images for testing:
 
-| File | Description | Contains |
-|------|-------------|----------|
-| `CCMAX.DSK` | CoCoMax 1/2 images | MAX format files (GIRL1-4.MAX) |
-| `CM3PIC01.DSK` | CoCoMax 3 images | CM3 format files (Jinx.CM3, Snail.CM3, etc.) |
-| `CLIPART1.DSK` | MAX-10 clip art | CLP format files (state outlines) |
-| `GIRLS1.DSK` | More CoCoMax images | Additional MAX files |
+| File | Size | Description | Contains |
+|------|------|-------------|----------|
+| `CCMAX.DSK` | 158K | CoCoMax 1/2 images | MAX format files |
+| `CM3PIC01.DSK` | 158K | CoCoMax 3 images | CM3 format files (Jinx.CM3, Snail.CM3, etc.) |
+| `CLIPART1.DSK` | 158K | MAX-10 clip art | CLP format files (US state outlines) |
+| `CLIPART2.dsk` | 158K | MAX-10 clip art | CLP format files (Animals: GORILLA, LION, TIGER, etc.) |
+| `CLIPART3.dsk` | 158K | MAX-10 clip art | CLP format files (Sports: BASEBALL, SOCCER, HOCKEY, etc.) |
+| `CLRMAX-1.DSK` | 158K | ColorMax images | MGE format files (not yet supported) |
+
+### Example Commands for Each Disk
+
+```bash
+# Browse CCMAX.DSK
+python3 main.py list CCMAX.DSK
+
+# Extract from CM3PIC01.DSK
+python3 main.py extract CM3PIC01.DSK Jinx.CM3 jinx.png
+
+# Extract US state clipart
+python3 main.py extract CLIPART1.DSK AL.CLP alabama.png
+
+# Extract animal clipart
+python3 main.py extract CLIPART2.dsk GORILLA.CLP gorilla.png
+
+# Extract sports clipart
+python3 main.py extract CLIPART3.dsk SOCCER.CLP soccer.png
+```
+
+## Project Structure
+
+```
+CoCo-Image-Viewer/
+├── main.py                    # Main application (GUI + CLI)
+├── coco_dsk.py                # DSK image handler library
+│
+├── README.md                  # This file
+├── LICENSE                    # MIT License
+├── .gitignore                 # Git ignore patterns
+│
+├── COCO-PICS-FORMATS.md       # Technical format documentation (630 lines)
+├── CLAUDE.md                  # Project development guide
+├── AGENTS.md                  # Repository guidelines for AI agents
+├── CLP File.txt               # MAX-10 format specification
+│
+├── CCMAX.DSK                  # Sample: MAX format images
+├── CM3PIC01.DSK               # Sample: CM3 format images
+├── CLIPART1.DSK               # Sample: CLP clipart (US states)
+├── CLIPART2.dsk               # Sample: CLP clipart (animals)
+├── CLIPART3.dsk               # Sample: CLP clipart (sports)
+└── CLRMAX-1.DSK               # Sample: MGE format (not yet supported)
+```
+
+### File Descriptions
+
+#### Python Modules
+
+- **main.py** (620+ lines)
+  - Primary entry point with embedded format converters
+  - DSK parsing logic (DSKImage, DirectoryEntry classes)
+  - MAX-to-PPM conversion (artifact colors with YIQ color space)
+  - CM3-to-PPM conversion (decompression and palette handling)
+  - CLP-to-PPM conversion (MAX-10 clipboard picture extraction)
+  - Tkinter GUI application
+  - CLI with three subcommands: `gui`, `list`, `extract`
+
+- **coco_dsk.py** (300+ lines)
+  - Standalone DSK manipulation library
+  - DSKImage class for reading/writing DSK/JVC images
+  - DECB file system implementation
+  - FAT parsing and granule chain traversal
+  - File extraction and upload capabilities
+  - Can be used independently as a command-line tool
+
+#### Documentation
+
+- **COCO-PICS-FORMATS.md** (630 lines)
+  - Comprehensive technical reference for programmers
+  - Complete format specifications: MAX, CM3, CLP
+  - Byte-by-byte header breakdowns
+  - Code examples and algorithms
+  - Common pitfalls and optimization tips
+  - Color encoding details and compression algorithms
+
+- **CLAUDE.md**
+  - Project overview and architecture
+  - Key commands for development
+  - Testing strategy and validation workflow
+  - Integration points and code organization
+
+- **AGENTS.md**
+  - Repository guidelines for AI coding assistants
+  - Module organization and structure
+  - Build, test, and development commands
+  - Coding style and naming conventions
+
+- **CLP File.txt**
+  - Original MAX-10 technical reference by Dave Stampe
+  - CLP file structure specification
+  - Paragraph tag system documentation
+  - Picture format details
+
+#### Sample Disk Images
+
+All disk images are 158KB DSK/JVC format (DECB file system):
+
+- **CCMAX.DSK** - CoCoMax 1/2 pictures (MAX format)
+- **CM3PIC01.DSK** - CoCoMax 3 pictures with 16-color palettes
+- **CLIPART1.DSK** - 50 US state outline clipart images (CLP format)
+- **CLIPART2.dsk** - Animal clipart: GORILLA, LION, TIGER, ELEPHANT, etc.
+- **CLIPART3.dsk** - Sports clipart: SOCCER, BASEBALL, HOCKEY, SURFER, etc.
+- **CLRMAX-1.DSK** - MGE format images (ColorMax format - future support)
 
 ## Architecture
-
-### Module Structure
-
-**main.py** - Primary entry point
-- Embeds DSK parsing (DSKImage, DirectoryEntry classes)
-- MAX-to-PPM conversion (artifact colors with YIQ color space)
-- CM3-to-PPM conversion (decompression and palette handling)
-- CLP-to-PPM conversion (MAX-10 clipboard picture extraction)
-- Tkinter GUI application
-- CLI with three subcommands: `gui`, `list`, `extract`
-
-**coco_dsk.py** - Standalone DSK manipulation library
-- DSKImage class for reading/writing DSK/JVC images
-- DECB file system implementation
-- FAT parsing and granule chain traversal
-- File extraction and upload capabilities
-
-**COCO-PICS-FORMATS.md** - Technical documentation
-- Complete format specifications for programmers
-- Byte-by-byte header breakdowns
-- Code examples and algorithms
-- Common pitfalls and optimization tips
-
-## Technical Details
 
 ### DSK File System (DECB)
 
@@ -186,33 +268,26 @@ The repository includes sample disk images for testing:
 - MSB first (bit 7 = leftmost pixel)
 - Padding byte required at end of each line
 
-## Format Documentation
+## Technical Details
 
-For detailed technical specifications, see [COCO-PICS-FORMATS.md](COCO-PICS-FORMATS.md):
-- Complete header structures
-- Compression algorithms
-- Color palette encoding
-- Implementation examples
-- Error handling guidelines
-
-## Project Structure
+### Image Format Conversion Pipeline
 
 ```
-CoCo-Image-Viewer/
-├── main.py                    # Main application (GUI + CLI)
-├── coco_dsk.py                # DSK image handler
-├── COCO-PICS-FORMATS.md       # Technical format documentation
-├── CLAUDE.md                  # Project development guide
-├── README.md                  # This file
-├── LICENSE                    # MIT License
-├── .gitignore                 # Git ignore patterns
-├── CCMAX.DSK                  # Sample MAX images
-├── CM3PIC01.DSK               # Sample CM3 images
-├── CLIPART1.DSK               # Sample CLP clip art
-├── GIRLS1.DSK                 # Additional MAX images
-├── GIRL1.MAX - GIRL4.MAX      # Individual MAX files
-└── CLP File.txt               # MAX-10 format specification
+DSK Image → Extract File → Parse Format → Convert to PPM → Save as PNG
+     ↓            ↓              ↓               ↓              ↓
+  JVC/DECB    granules    MAX/CM3/CLP    RGB pixels    Pillow library
 ```
+
+### Supported Operations
+
+| Operation | MAX | CM3 | CLP |
+|-----------|-----|-----|-----|
+| View in GUI | ✅ | ✅ | ✅ |
+| Extract to PNG | ✅ | ✅ | ✅ |
+| Artifact colors | ✅ (BR/RB) | ❌ | ❌ |
+| Palette support | ❌ | ✅ (16-color) | ❌ |
+| Compression | ❌ | ✅ (RLE) | ❌ |
+| Multiple images | ❌ | ❌ | First only |
 
 ## Development
 
@@ -220,7 +295,8 @@ CoCo-Image-Viewer/
 
 ```bash
 # Test MAX format
-python3 main.py extract CCMAX.DSK GIRL1.MAX test.png
+python3 main.py list CCMAX.DSK
+python3 main.py extract CCMAX.DSK <filename>.MAX test.png
 
 # Test CM3 format (192 rows)
 python3 main.py extract CM3PIC01.DSK Snail.CM3 test.png
@@ -228,8 +304,14 @@ python3 main.py extract CM3PIC01.DSK Snail.CM3 test.png
 # Test CM3 format (384 rows)
 python3 main.py extract CM3PIC01.DSK Jinx.CM3 test.png
 
-# Test CLP format
+# Test CLP format - states
 python3 main.py extract CLIPART1.DSK AL.CLP test.png
+
+# Test CLP format - animals
+python3 main.py extract CLIPART2.dsk GORILLA.CLP test.png
+
+# Test CLP format - sports
+python3 main.py extract CLIPART3.dsk SOCCER.CLP test.png
 ```
 
 ### Adding New Formats
@@ -249,6 +331,7 @@ To add support for additional Color Computer graphics formats:
 - CLP files only extract the first picture paragraph
 - Maximum CLP image size: 7,660 bytes (per MAX-10 specification)
 - GUI displays one image at a time (no multi-image gallery view)
+- MGE format (in CLRMAX-1.DSK) not yet supported
 
 ## Troubleshooting
 
@@ -265,6 +348,11 @@ pip install pillow
 ### "No picture found in CLP file"
 - CLP files may contain only text, rulers, or page breaks
 - Only files with picture paragraphs (tag 0x01) will display
+
+### GUI not launching
+- Ensure tkinter is installed: `sudo apt install python3-tk` (Linux)
+- On macOS, tkinter comes with Python
+- On Windows, tkinter is included with Python installation
 
 ## Contributing
 
@@ -286,6 +374,17 @@ Contributions are welcome! Please feel free to submit issues, feature requests, 
 - Test with sample files before submitting
 - Include format specifications for new file types
 
+### Future Enhancement Ideas
+
+- [ ] Add MGE format support (ColorMax)
+- [ ] Implement multi-image gallery view in GUI
+- [ ] Add batch conversion mode
+- [ ] Support for other CoCo formats (RAT, HRS, VEF, PIX)
+- [ ] Image preview thumbnails in file list
+- [ ] Export to multiple formats (BMP, GIF, etc.)
+- [ ] Zoom and pan controls in GUI
+- [ ] Color palette editor for CM3 images
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -299,13 +398,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### Tools & Libraries
 - [coco-tools](https://github.com/jamieleecho/coco-tools) by Jamie Cho - Reference implementations
 - [Pillow](https://python-pillow.org/) - Python Imaging Library
-- Color Computer community for format documentation
+- Color Computer community for format documentation and sample files
 
 ### Special Thanks
 - Mathieu Bouchard - cm3toppm implementation reference
 - Jamie Cho (jamieleecho) - coco-tools package and format knowledge
 - Dave Stampe - MAX-10 CLP format technical documentation
 - Color Computer Archive - Sample files and documentation
+- Colorware - Original MAX and CM3 software
 
 ## Resources
 
@@ -320,16 +420,23 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **veftopng** - VEF to PNG converter
 - **Toolshed** - CoCo disk utilities
 
+### Documentation in This Repository
+- **[COCO-PICS-FORMATS.md](COCO-PICS-FORMATS.md)** - Deep dive into MAX, CM3, and CLP formats
+- **[CLAUDE.md](CLAUDE.md)** - Project overview and development guide
+- **[AGENTS.md](AGENTS.md)** - Guidelines for AI-assisted development
+- **[CLP File.txt](CLP%20File.txt)** - Original MAX-10 format specification
+
 ## Version History
 
-### v1.0.0 (Initial Release)
+### v1.0.0 (November 2025)
 - ✅ MAX format support with artifact colors
 - ✅ CM3 format support with compression
 - ✅ CLP format support for MAX-10 pictures
 - ✅ GUI viewer for browsing DSK images
 - ✅ CLI tools for extraction and conversion
 - ✅ Comprehensive programmer documentation
-- ✅ Sample disk images included
+- ✅ Sample disk images included (6 DSK files)
+- ✅ Support for 3 clipart collections (states, animals, sports)
 
 ---
 
