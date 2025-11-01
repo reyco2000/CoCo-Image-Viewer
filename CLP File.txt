@@ -1,175 +1,312 @@
-The Structure of a /CLP file
+# Structure of a `/CLP` File
 
-Header: contains several types of information. The first is 2 flags
-for word cut/paste support. These tell the Paste operation whether
-the start and end of the selection was on a word boundary, so it wil1
-know when to insert a space.
-Next is data on the file's consumption of system resources, used
-for pre-Paste error checking. This data guarantees that a Paste
-operation will never exceed the amount of free memory, maximum
-paragraph count, or size of text paragraph.
-The Header Format:
-2 bytes-Start and End word boundary flags. 0 if not on a boundar y
-when Cut or Copied-- a word boundary is the same as the
-edge of highlighting when you double- click on a word in
-Мах-10. If you are creating a full fite that begins with a
-ruler, and ends with any full paragraph (not a string) you
-can set these to 0.
-2 bytes- Number of paragraphs in the document-- add 2 for safety. A
-paragraph is a text paragraph, a picture, ruler, or page
-break.
-2 bytes-Estimated memory (NOT file) size. To estimate this, add about
-9 bytes per paragraph to the file size.
-1 byte- String Only flag. Set this byte only if the entire selection
-Cut or Copied came from one text paragraph, and did not
-include the Return at the end of the paragraph.
-2 bytes-String or first paragraph size (set it to 32 if first
-paragraph was not text)
-2 bytes- Last String size- set to 32 unless the last paragraph is
-text string (the Return character was not included).
-a
-Data in a /CLP File:
-After the header in a /CLP file comes the data. Each paragraph or
-string in the file begins with a tag to show what type it is: after
-that, the format depends on what the paragraph is.
-1988 by Dave Stampe Page 2
-Мax-10 Technical Reference Guide
-/CLP Tags:
-100- End of Data (more data may follow in a full document file).
-0- Text (full) paragraph. A Return character is assumed to have
-been selected with the paragraph.
-32- String (partial) paragraph. No Return was Cut or Copied at the
-end of the paragraph.
-1- Picture paragraph. Data on the picture, its location and bit
-image follow.
-2- Page break paragraph- no more data is needed.
-255- Ruler paragraph- data follows.
-All other tag values should be assumed to be reserved.
-Exact Paragraph Formats:
-End of data (100)- No more data needed. If any more follows, the
-data is assumed to be for a full document and is ignored when
-pasting the file.
-Page break (2)- No further data is needed.
-String (32) or Text (0)- The format for these is identical. When a
-Text paragraph is Pasted, a Return character is assumed to fol1ow
-(even though there is none in the file). A 2 byte length count follows
-the tag; the byte count includes the start Font/Style tag pair.
-Next is the starting Font/Style pair. This has the same format as
-other tag pairs, which are imbedded in the text which follows. The
-first byte of the pair is $A0+(the font number, 0 to 7). Then the style
-tag follows, which has the following bit pattern: 1,0,0,L,H,U,I,B; where
-B=bold, I=italics, U-underline, H-superscript, and L=subscript. H and L
-should never be set at the same time, and the tag codes above $BO
-are reserved.
-The paragraph text follows, with Font/Style tag pairs before each
-new text type. Tabs are usually character 9, although any value
-between 1 and 31 may be used. Never use 0 in a text paragraph,
-as Max-10 uses this internally as its End of Text marker.
-1988 by Dave Stampe Page 3
-Mаx-10 Technical Reference Guide
-Pictures (1)- Picture paragraphs include data on the position and
-size of the picture in the document, as well as data on its own size,
-and the picture's bit image follows. (Data on single- picture /CLP files
-is given later in this document).
-2 bytes- the size of the picture paragraph- use 20 + the size of the
-bit image in bytes.
-2 bytes-the left side of the picture in the document. This is given
-as a value from 8 to 576, and represents a horizontal
-position in the screen window (see Rulers for more data).
-Picture position and size are automatically clipped before
-printing.
-2 bytes-the vertical size of the picture in lines. The maximum is
-about 600- each line represents 1/72 inch on the printed
-page. Use 8 as a minimum.
-2 bytes- horizontal width of the picture on the screen. Each pixel
-represends about 1/80 inch on the printout. Use 570 as a
-maximum and 24 as a minimum.
-2 bytes- bit image vertical size in lines
-2 bytes-bit image horizontal size in pixels
-1 byte- length of a picture line in bytes. There should be at least 8
-blank pixels or 1 byte added to the end of each line of the
-picture's image.
-The picture's image now follows. There may be any number of bytes
-per line, as long as the last byte is blank. A bit in the image should
-be 0 if white, and 1 if black. Putting more than 550 pixels wide for an
-80 dpi printer or 900 for a 120 dpi printer is a waste of space, as it
-will be compressed horizontally on the printout.
-The maximum size of the bit image is 7660 bytes: if you exceed
-this, the end of the picture could get lost during editing. This is
-plenty of memory for a full PMODE 4 screen, but not enough for a
-320x192 or 640x192 (HSCREEN 3) futll screen. However, you could have a
-560x100 letterhead (which would be printed at full resolution, but
-would take up nearly 8K in the text buffer!)
-1988 by Dave Stampe Page 4
-Max-10 Technical Reference Guide
-Rulers (255)- The ruler paragraph has a fixed length of 27 bytes,
-of which the last 2 are assigned the value of 0 and are reserved for
-future use. The rest of the data corresponds to margins, tabs,
-justification, and line spacing data. All numbers are in pixels from
-the left edge of the edit window, and are 1/80 inch per pixel. Use 8 as
-a minimum, and 576 as a maximum.
-2 bytes- Right margin
-2 bytes- Indent. This will be used as the left margin on the first
-line of each paragraph.
-2 bytes- Left margin. This is the left margin on all but the first
-line of a paragraph. It is also used to limit picture width,
-along with the right margin. If the Indent is to the left
-of the left margin, it also acts as a tab on the first line
-only.
-8x2 bytes- 8 tab positions. They should be sorted from lowest to
-highest, and unused tabs should be at the end, and
-contain the value 40000.
-1 byte- 0 if there are NO tabs to use, else 1
-1
-1
-byte- Justification type: 0=Ful1, 1=Left, 2=Centered, 255=Right.
-byte- Line spaceing: 0=Single, 100= 1 1/2, 200= Double. (You could
-use other values to fine-tune spacing of lines).
-2 bytes- Always 0 (RESERVED)
-The Full Document Data
-The Full Document File data follows the standard /CLP file body. It
-is ignored when a file is Pasted into a document, and is only used by
-the Load... command.
-The data consists of several sections, each preceded by a special
-tag. Following is a list of the tags (in the order that they occur), and
-the data they precede. If a tag is not found in a file when Mаx-10
-expects it, the loading stops and default values are used instead.
-101- Precedes the Header data.
-102- Precedes the Footer data.
-The Header and Footer data consist of 5 bytes of 0 followed by a
-series of tagged paragraphs identical to the main document, but
-without a Paste data header. It should end with the 100 tag.
-1988 by Dave Stampе Page 5
-Мах-10 Technical Reference Guide
-Notes on Header and Footer: There shouid never be more than 5
-paragraphs in a header or footer, including the first ruler. Don't
-exceed the limit of 6 screen lines, either.
-103- Followed by general status data, designed so you can take up
-where you left off in editing:
-4
-2
-bytes- Menu option data. If the corresponding menu entry should
-be checked off, use 128, else use 0. Do not use any other
-values. The 4 entries are: Show Rulers, Show
-Header/Footer, Picture Perfect, and Key Click.
-bytes-The vertical position of the top of the screen in the
-document, given in lines (1/72 inch on paper). Note that the
-edit window is 180 lines high, so the maximum should be: 9
-(inches) 72 (lines per inch) # (number of pages in the
-document) -180 (Edit window height). In no case exceed
-64000.
-2 bytes-First page number in the document. This should be between
-0 and 999. (Line numbers above 999 are not fully printed in
-the header or footer).
-6 bytes- For future use: these are (2 bytes each): the active page
-size (648), and the top and bottom margins (72), given in
-multiples of 1/72 inch. Note that these do not, at present,
-influence Max-10.
-UPGRAGE VERSION ONLY:
-1
-104- Precedes the Extension file data. This is used for columning and
-other new options:
-byte- Column number flag: 0= no columns, 1= 2 columns, 255= 3
-columns.
-2 bytes- Column offset in 1/80 inch.
-1 byte- "Use char. 127 as space" flag: 0 or 128 only.
+**Source:** Dave Stampe, *Max-10 Technical Reference Guide*, 1988.
+Retrieved from Color Computer Archive:
+[https://colorcomputerarchive.com/repo/Documents/Manuals/Applications/Max-10%20Technical%20Reference%20Guide%20(Dave%20Stampe).pdf](https://colorcomputerarchive.com/repo/Documents/Manuals/Applications/Max-10%20Technical%20Reference%20Guide%20%28Dave%20Stampe%29.pdf)
+
+A `/CLP` file consists of two main parts:
+
+1. **Header** – paste-related flags and resource-usage data.
+2. **Data area** – a sequence of tagged paragraphs (text, string, picture, ruler, etc.).
+
+This format allows Max-10 to verify, before pasting, that there is enough memory and paragraph capacity so a Paste operation will not fail.
+
+---
+
+## 1. Header Format
+
+The header contains these fields **in order**:
+
+1. Start word-boundary flag – 2 bytes
+2. End word-boundary flag – 2 bytes
+3. Number of paragraphs – 2 bytes
+4. Estimated memory (not file) size – 2 bytes
+5. String-only flag – 1 byte
+6. String / first-paragraph size – 2 bytes
+7. Last-string size – 2 bytes
+
+```text
+Offset  Size  Description
+------  ----  --------------------------------------------------------------
+0       2     Start word-boundary flag
+2       2     End word-boundary flag
+4       2     Number of paragraphs in document (recommend: actual + 2)
+6       2     Estimated memory size (file size + ~9 bytes per paragraph)
+8       1     String-only flag (set only if selection was 1 text paragraph
+              and did NOT include the final Return)
+9       2     String / first-paragraph size (32 if first paragraph not text)
+11      2     Last-string size (32 unless last paragraph is a text string)
+```
+
+### Notes on Header Fields
+
+* **Word-boundary flags (first 4 bytes):**
+  Tell Paste whether the selection started/ended on a word boundary.
+
+  * Set to `0` if not on a boundary.
+  * A “word boundary” is the same as the edge of highlighting when you double-click a word in Max-10.
+  * If you are creating a full file that **begins with a ruler** and **ends with a full paragraph** (not a string), you can set both to `0`.
+
+* **Number of paragraphs (2 bytes):**
+  Count text paragraphs, pictures, rulers, and page breaks. The original notes recommend: **store actual count + 2** for safety.
+
+* **Estimated memory size (2 bytes):**
+  This is **in-memory** size, not disk size.
+
+  * Rule of thumb:
+    `estimated_mem = file_size + (9 × number_of_paragraphs)`
+
+* **String-only flag (1 byte):**
+  Set **only** if the entire selection came from **one** text paragraph **and** did **not** include the final Return.
+
+* **String / first-paragraph size (2 bytes):**
+  If the first paragraph was **not** text, store **32**.
+
+* **Last-string size (2 bytes):**
+  Set to **32** unless the **last** paragraph is a text string (Return character not included).
+
+---
+
+## 2. Data Section (Paragraph Area)
+
+After the header, the file contains one or more **tagged paragraphs**. Each paragraph starts with **1 tag byte** that identifies the type of paragraph; the rest of the data depends on the tag.
+
+### 2.1 Valid `/CLP` Tags
+
+```text
+Tag   Meaning
+---   ------------------------------------------------------------
+100   End of data (more data may follow in a full document file)
+0     Text (full) paragraph – a Return is assumed on paste
+32    String (partial) paragraph – no Return at end
+1     Picture paragraph – position + image data follow
+2     Page break paragraph – no more data follows
+255   Ruler paragraph – fixed-length ruler data follows
+else  Reserved – do not use
+```
+
+---
+
+## 3. Paragraph Formats
+
+### 3.1 End of Data (Tag = 100)
+
+* No more paste data follows.
+* If more data **does** follow, it is treated as part of a **full document** and is ignored when pasting.
+
+---
+
+### 3.2 Page Break (Tag = 2)
+
+* No further data is needed.
+
+---
+
+### 3.3 Text (Tag = 0) and String (Tag = 32) Paragraphs
+
+These two types have **identical** structure; the difference is semantic:
+
+* **Text (0):** when pasted, Max-10 **assumes a Return** follows.
+* **String (32):** represents a **partial** paragraph; **no** Return is assumed.
+
+**Format:**
+
+```text
+1 byte   Tag (0 = Text, 32 = String)
+2 bytes  Length of paragraph data (includes the starting Font/Style pair)
+n bytes  Starting Font/Style pair
+n bytes  Text data (with embedded Font/Style tag pairs)
+```
+
+#### Font/Style Start Tag Pair
+
+* **1st byte:** `$A0 + font_number` (font_number = 0..7)
+* **2nd byte:** style bits in the pattern:
+
+```text
+1 0 0 L H U I B
+```
+
+Where:
+
+* **B** = Bold
+* **I** = Italic
+* **U** = Underline
+* **H** = Superscript
+* **L** = Subscript
+
+Notes:
+
+* **H** and **L** must **not** both be set.
+* Codes above `$B0` are **reserved**.
+
+#### Text Content
+
+* Actual paragraph text follows.
+* Additional Font/Style tag pairs may be embedded to change font/style.
+* Tabs are usually **character 9**, but **any value 1–31** may be used.
+* **Do not use `0`** inside a text paragraph, because Max-10 uses `0` internally as **End of Text**.
+
+---
+
+### 3.4 Picture Paragraphs (Tag = 1)
+
+Picture paragraphs include position, sizing, and the bit image itself.
+
+**Format:**
+
+```text
+2 bytes  Picture paragraph size
+2 bytes  Left position in document (8–576)
+2 bytes  Vertical size in lines (min 8, max ≈ 600) – 1 line = 1/72"
+2 bytes  Horizontal width on screen (min 24, max 570) – 1 px ≈ 1/80"
+2 bytes  Bit image vertical size in lines
+2 bytes  Bit image horizontal size in pixels
+1 byte   Length of a picture line in bytes
+n bytes  Picture bit image data
+```
+
+**Details:**
+
+* **Picture paragraph size** = `20 + (size of bit image in bytes)`.
+* **Left position** is a horizontal position in the screen window (8–576). Picture position and size are clipped before printing.
+* **Vertical size:** each line represents **1/72 inch** on the printed page.
+* **Horizontal width:** each pixel represents about **1/80 inch** on printout (use 24–570).
+* **Bit image lines:** add **at least 8 blank pixels** (or 1 blank byte) to the end of **each** image line.
+* **Bit values:** `0 = white`, `1 = black`.
+* There may be any number of bytes per line, as long as the **last byte is blank**.
+
+**Maximum bit image size:** **7660 bytes**
+
+* Enough for a full **PMODE 4** screen.
+* Not enough for **320×192** or **640×192 (HSCREEN 3)** full screen.
+* A **560×100** letterhead will print at full resolution but will consume nearly **8 KB** of the text buffer.
+
+**Printing notes:**
+
+* More than **550 pixels** wide (for 80-dpi printer) or **900 pixels** wide (for 120-dpi printer) is wasted, because it will be compressed horizontally.
+
+---
+
+### 3.5 Ruler Paragraphs (Tag = 255)
+
+* **Fixed length:** 27 bytes
+* **Last 2 bytes:** always `0` (reserved)
+* All numbers are in **pixels from the left edge** of the edit window
+
+  * 1 pixel = **1/80 inch**
+  * Range: **8–576**
+
+**Format:**
+
+```text
+2 bytes  Right margin
+2 bytes  Indent (used as left margin on the first line)
+2 bytes  Left margin (used on all but first line; also limits picture width)
+8×2 bytes 8 tab positions (sorted; unused = 40000)
+1 byte   Tabs-present flag (0 = no tabs, 1 = tabs valid)
+1 byte   Justification:
+         0 = Full, 1 = Left, 2 = Centered, 255 = Right
+1 byte   Line spacing:
+         0 = Single, 100 = 1.5, 200 = Double (others = fine-tune)
+2 bytes  Reserved (always 0)
+```
+
+**Notes:**
+
+* If the **Indent** is to the **left** of the **Left margin**, it also acts as a **tab on the first line only**.
+* Tab positions must be **sorted low to high**.
+* Unused tabs should be placed at the end and set to **40000**.
+
+---
+
+## 4. Full Document Data (Beyond Paste)
+
+A **full** Max-10 document file contains, **after** the standard `/CLP` body, several **extra sections**. These are **ignored** when the file is *pasted* into a document, but are **used** when the file is *loaded* with the **Load…** command.
+
+Each of these sections is preceded by a **tag**. If a tag is not found when Max-10 expects it, loading stops and default values are used instead.
+
+### 4.1 Tags Used in Full Document Files
+
+```text
+101  Header data
+102  Footer data
+103  General status data
+104  Extension / upgrade data
+```
+
+---
+
+### 4.2 Header and Footer Data (Tags 101 and 102)
+
+* Start with **5 bytes of 0**.
+* Followed by **tagged paragraphs** in the **same format** as the main document.
+* Must end with the **100** End-of-data tag.
+* Limits:
+
+  * No more than **5 paragraphs** (including the first ruler).
+  * Do not exceed **6 screen lines**.
+
+---
+
+### 4.3 General Status Data (Tag = 103)
+
+This data lets Max-10 restore the editor to the state it was in when the file was saved.
+
+**Format:**
+
+```text
+4 bytes  Menu option data (one byte per option):
+         128 = checked/on, 0 = off
+         Order:
+           1. Show Rulers
+           2. Show Header/Footer
+           3. Picture Perfect
+           4. Key Click
+2 bytes  Vertical position of top of screen in lines (1/72")
+2 bytes  First page number (0–999)
+6 bytes  Future use (3 × 2 bytes):
+         - Active page size (e.g. 648)
+         - Top margin (e.g. 72)
+         - Bottom margin (e.g. 72)
+```
+
+**Notes:**
+
+* Edit window is **180 lines** high.
+* Do not exceed **64000** for vertical position.
+* Page numbers above **999** are not fully printed in header/footer.
+* The 6 “future use” bytes (page size, top, bottom) do not currently affect Max-10.
+
+---
+
+### 4.4 Upgrade / Extension Data (Tag = 104)
+
+Used for column layout and newer features.
+
+**Format:**
+
+```text
+1 byte   Column number flag:
+         0   = no columns
+         1   = 2 columns
+         255 = 3 columns
+2 bytes  Column offset (in 1/80")
+1 byte   "Use char 127 as space" flag (0 or 128 only)
+```
+
+---
+
+## 5. Reserved Values
+
+* Any tag values or style codes not described above should be treated as **reserved**.
+* The header is designed to let Max-10 **refuse** a paste that would:
+
+  * exceed free memory,
+  * exceed maximum paragraph count,
+  * or exceed maximum text-paragraph size.
+
+---
+
+**Adapted to GitHub-flavored Markdown from the original material in:**
+Dave Stampe, *Max-10 Technical Reference Guide*, 1988.
