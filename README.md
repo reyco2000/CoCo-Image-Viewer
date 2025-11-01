@@ -409,6 +409,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ for the TRS-80 Color Computer community**
+**Made with ❤️ by ChipShift a CocoByte member for the TRS-80 Color Computer community**
 
 🤖 *Developed with assistance from [Claude Code](https://claude.com/claude-code)*
