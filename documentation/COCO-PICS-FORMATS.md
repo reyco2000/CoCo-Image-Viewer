@@ -971,8 +971,11 @@ These graphics files were commonly stored on CoCo disk formats:
 
 **Document Version**: 1.01
 **Last Updated**: November 2 2025
-**Createad & Maintained by**:
-Reinaldo Torres reyco2000@gmail.com 
-@Chipshift https://github.com/reyco2000  
-Proud member of CoCoByte Club https://cocobyte.co/
+
+Made with ❤️ by Reinaldo Torres — a proud CoCo enthusiast
+📧 reyco2000@gmail.com
+
+🟢 Proud member and co-creator of the CoCoByte Club https://cocobyte.co/
+
+🔗 See more on @ChipShift https://github.com/reyco2000/
 
