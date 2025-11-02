@@ -965,10 +965,14 @@ These graphics files were commonly stored on CoCo disk formats:
 - Mathieu Bouchard - cm3toppm implementation
 - Dave Stampe - MAX-10 CLP format specification
 - Colorware - Original MAX and CM3 software
+- Antropic Claude Code for summarizing
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: November 2025
-**Maintained by**: Chipshift reyco2000@gmail part of theCoCo Community
+**Document Version**: 1.01
+**Last Updated**: November 2 2025
+**Createad & Maintained by**:
+Reinaldo Torres reyco2000@gmail.com 
+@Chipshift https://github.com/reyco2000  
+Proud member of CoCoByte Club https://cocobyte.co/
 
