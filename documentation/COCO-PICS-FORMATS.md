@@ -2,7 +2,7 @@
 
 **Technical Reference for Programmers**
 
-This document provides comprehensive technical specifications for three graphics file formats used on the TRS-80 Color Computer (CoCo): MAX, CM3, and CLP.
+This document provides comprehensive technical specifications for four graphics file formats used on the TRS-80 Color Computer (CoCo): MAX, CM3, MGE, and CLP.
 
 ---
 
@@ -10,9 +10,11 @@ This document provides comprehensive technical specifications for three graphics
 
 1. [MAX Format (CoCoMax 1/2)](#max-format-cocomax-12)
 2. [CM3 Format (CoCoMax 3)](#cm3-format-cocomax-3)
-3. [CLP Format (MAX-10 Clipboard)](#clp-format-max-10-clipboard)
-4. [Implementation Notes](#implementation-notes)
-5. [References](#references)
+3. [MGE Format (Graphics Exchange)](#mge-format-graphics-exchange)
+4. [CLP Format (MAX-10 Clipboard)](#clp-format-max-10-clipboard)
+5. [Implementation Notes](#implementation-notes)
+6. [Hardware Context](#hardware-context)
+7. [References](#references)
 
 ---
 
@@ -220,6 +222,23 @@ Index  Binary    RGB565   RGB888      Color Name
  15    111111    3,3,3    255,255,255 White
 ```
 
+### Color Rendering Modes
+
+CM3 files were designed for both RGB and composite monitor display. While the file format itself doesn't include a monitor type flag, some related formats (like MGE) include this metadata. The same palette values may render differently depending on the monitor type:
+
+**RGB Mode (Digital)**:
+- Each palette entry directly maps to digital RGB output
+- Colors appear as specified by the 6-bit RGB values
+- Standard display mode for RGB monitors
+
+**Composite Mode (Analog)**:
+- Palette values are interpreted through composite video conversion
+- Colors may shift due to NTSC encoding artifacts
+- Some software included RGB ↔ Composite conversion tables (16-entry lookup tables)
+- These tables remap palette indices rather than modify RGB values
+
+**Implementation Note**: When converting CM3 files, assume RGB mode unless composite conversion metadata is present. Composite conversion is typically handled at the application level through palette remapping rather than being encoded in the file format itself.
+
 ### Image Data Compression
 
 CM3 uses a sophisticated two-stage compression algorithm with reference buffers.
@@ -327,6 +346,166 @@ Offset    Hex                                          Description
 0000001C  00                                           Cycle flag
 0000001D  C0 14 15 16 ...                             Page 0 start
 ```
+
+---
+
+## MGE Format (Graphics Exchange)
+
+### Overview
+
+MGE (Graphics Exchange) files are a standardized interchange format used by various CoCo 3 graphics programs including ANIMTOOL. Unlike CM3's complex compression, MGE uses a simpler run-length encoding scheme and includes metadata for monitor type compatibility.
+
+### File Structure
+
+```
+┌─────────────────────────────────────┐
+│ Header (51 bytes)                   │
+├─────────────────────────────────────┤
+│ Bitmap Data (32,000 bytes max)     │
+│   - May be compressed or raw        │
+└─────────────────────────────────────┘
+```
+
+### Header Format (51 bytes)
+
+| Offset | Size | Type     | Description                              |
+|--------|------|----------|------------------------------------------|
+| 0x00   | 1    | uint8    | Resolution byte (0 = 320×200)           |
+| 0x01   | 16   | uint8[16]| 16-color palette (6-bit RGB)            |
+| 0x11   | 1    | uint8    | Monitor type (0 = RGB, 1 = Composite)   |
+| 0x12   | 1    | uint8    | Compression flag (0 = compressed)       |
+| 0x13   | 32   | char[32] | Picture name/title (null-terminated)    |
+| 0x33   | var  | uint8[]  | Bitmap data (follows header)            |
+
+#### Resolution Byte (Byte 0)
+
+Currently, only one resolution is documented:
+
+```
+Value  Resolution   Description
+─────────────────────────────────────────────
+  0    320 × 200    16-color low-res mode
+```
+
+**Note**: This is a third resolution variant in the CoCo 3 ecosystem. CM3 uses 320×192 or 320×384, while MGE uses 320×200.
+
+#### Monitor Type (Byte 0x11)
+
+```
+Value  Type       Description
+──────────────────────────────────────────────────
+  0    RGB        Digital RGB monitor (direct colors)
+  1    Composite  Composite video (uses palette remapping)
+```
+
+When `monitor_type = 1` (Composite), the palette should be interpreted through a composite conversion table. This is a 16-entry lookup table that remaps palette indices to achieve correct colors on composite displays.
+
+#### Compression Flag (Byte 0x12)
+
+```
+Value  Mode         Description
+────────────────────────────────────────────────
+  0    Compressed   Data uses RLE compression
+  ≠0   Uncompressed Raw 32,000-byte bitmap
+```
+
+### Palette Format (16 bytes)
+
+MGE uses the same 6-bit RGB palette format as CM3. See the CM3 section for full conversion details.
+
+```c
+// Quick conversion reminder
+uint8_t r = (((palette_byte >> 5) & 1) * 2 + ((palette_byte >> 2) & 1)) * 85;
+uint8_t g = (((palette_byte >> 4) & 1) * 2 + ((palette_byte >> 1) & 1)) * 85;
+uint8_t b = (((palette_byte >> 3) & 1) * 2 + ((palette_byte >> 0) & 1)) * 85;
+```
+
+### RLE Compression Algorithm
+
+MGE uses a simple run-length encoding scheme that's much easier to implement than CM3's two-stage compression:
+
+```c
+// Decompression pseudocode
+uint8_t framebuffer[32000];  // Output buffer
+int pos = 0;
+
+while (pos < 32000) {
+    uint8_t repeat_count = read_byte();
+
+    if (repeat_count == 0) {
+        break;  // End of compressed data
+    }
+
+    uint8_t value = read_byte();
+
+    // Write value repeat_count times
+    for (int i = 0; i < repeat_count; i++) {
+        if (pos >= 32000) break;
+        framebuffer[pos++] = value;
+    }
+}
+```
+
+**Compression Format:**
+- Read repeat count (1 byte)
+- Read value to repeat (1 byte)
+- Write value N times to output buffer
+- Repeat count of 0x00 signals end of compressed data
+
+**Uncompressed Format:**
+If compression flag ≠ 0, simply read 32,000 bytes directly after the header.
+
+### Pixel Format
+
+Like CM3, each byte encodes **2 pixels** as 4-bit palette indices:
+
+```
+Byte: 0x3A = 0011 1010
+         │    │    │
+         │    │    └──► Pixel 2: index 10 (right pixel)
+         │    │
+         │    └───────► Pixel 1: index 3 (left pixel)
+```
+
+**Layout:**
+- Resolution: 320 × 200 pixels
+- Bytes per row: 160 (320 pixels ÷ 2 pixels/byte)
+- Total size: 32,000 bytes (160 bytes/row × 200 rows)
+- Order: Row-major, left-to-right, top-to-bottom
+
+### Example MGE File
+
+```
+Offset    Hex                                          Description
+──────────────────────────────────────────────────────────────────────
+00000000  00                                           Resolution = 0 (320×200)
+00000001  00 12 24 36 09 1B 2D 3F 08 1A 2C 3E ...    16-byte palette
+00000011  00                                           Monitor type = RGB
+00000012  00                                           Compressed
+00000013  4D 59 20 50 49 43 54 55 52 45 00 ...       "MY PICTURE\0..."
+00000033  FF 00 80 3C ...                             Compressed bitmap data
+          │  │  │  │
+          │  │  │  └──► Value 0x3C
+          │  │  └─────► Repeat 128 times
+          │  └────────► Value 0x00
+          └───────────► Repeat 255 times
+```
+
+### Comparison with CM3
+
+| Feature           | CM3                          | MGE                        |
+|-------------------|------------------------------|----------------------------|
+| Resolution        | 320×192 or 320×384          | 320×200                    |
+| Palette           | 6-bit RGB (16 colors)       | 6-bit RGB (16 colors)      |
+| Compression       | Two-stage with buffers      | Simple RLE                 |
+| Monitor flag      | Not included                | Included (RGB/Composite)   |
+| Picture name      | Not included                | 32-byte name field         |
+| Animation support | Yes (rate/cycle metadata)   | No                         |
+| Complexity        | High                        | Low                        |
+
+**Use Cases:**
+- MGE: General purpose interchange, easier to implement
+- CM3: Better compression ratio, animation support, more common
 
 ---
 
@@ -517,12 +696,23 @@ Offset    Hex                                          Description
    - Don't forget to account for padding when calculating buffer sizes
 
 4. **Color Space**:
-   - CM3 uses 6-bit RGB (64 colors max), not 8-bit RGB (256 per channel)
+   - CM3/MGE use 6-bit RGB (64 colors max), not 8-bit RGB (256 per channel)
    - Scale appropriately: `rgb8 = rgb2 * 85` (0→0, 1→85, 2→170, 3→255)
 
 5. **Compression State**:
    - CM3 decompression maintains line buffers between rows
    - Must preserve `linbuf` state when decoding compressed lines
+   - MGE uses simpler stateless RLE - each run is independent
+
+6. **MGE RLE Termination**:
+   - MGE compressed data ends with a 0x00 repeat count
+   - Don't assume the file fills exactly 32,000 bytes
+   - Check for premature termination or overruns
+
+7. **Monitor Type Handling**:
+   - MGE files include monitor type flag, but conversion tables are not embedded
+   - Implement composite conversion only if you have appropriate lookup tables
+   - Default to RGB interpretation when in doubt
 
 ### Performance Optimization
 
@@ -572,6 +762,14 @@ if (rows != 192 && rows != 384) {
     return ERROR_INVALID_HEIGHT;
 }
 
+// MGE format
+if (resolution != 0x00) {
+    return ERROR_UNSUPPORTED_RESOLUTION;
+}
+if (width != 320 || height != 200) {
+    return ERROR_INVALID_DIMENSIONS;
+}
+
 // CLP format
 if (tag == 0x01) {  // Picture
     if (bytes_per_line < (image_width + 7) / 8) {
@@ -594,11 +792,155 @@ Use a library like libpng or stb_image_write for PNG output.
 
 ---
 
+## Hardware Context
+
+Understanding the hardware environment helps explain design choices in these file formats.
+
+### Memory Architecture
+
+The CoCo 3 uses bank-switched memory with a Memory Management Unit (MMU) to access graphics data beyond the 64KB address space of the 6809 CPU.
+
+**Extended RAM Organization:**
+```
+Graphics data occupies 4 consecutive 8KB blocks in extended RAM
+Address range: $8000-$FFFF (32KB window)
+Total graphics RAM: 128KB available in CoCo 3
+```
+
+**MMU Configuration:**
+- MMU registers at $FFA0-$FFAF control memory mapping
+- Graphics modes typically use registers at $FFA4 and $FFA6
+- Each register maps one 8KB block to the CPU's address space
+
+**Example Memory Map:**
+```
+Register  Physical Bank   CPU Address   Purpose
+────────────────────────────────────────────────
+$FFA4     Bank 0x30       $8000-$9FFF   Graphics page 1
+$FFA5     Bank 0x31       $A000-$BFFF   Graphics page 2
+$FFA6     Bank 0x32       $C000-$DFFF   Graphics page 3
+$FFA7     Bank 0x33       $E000-$FFFF   Graphics page 4
+```
+
+### Graphics Modes and Resolutions
+
+**CoCo 3 GIME Graphics Modes:**
+
+| Mode | Resolution | Colors | Bytes | Format  |
+|------|------------|--------|-------|---------|
+| 0x00 | 320×192    | 16     | 30720 | CM3     |
+| 0x80 | 320×192    | 256    | 61440 | (rare)  |
+| 0x01 | 320×200    | 16     | 32000 | MGE     |
+| 0x02 | 640×192    | 4      | 30720 | (rare)  |
+| 0x03 | 640×200    | 4      | 32000 | (rare)  |
+| Hi-res| 320×384   | 16     | 61440 | CM3     |
+
+**Why Different Resolutions?**
+- 320×192: Standard CoCo 3 graphics mode (CM3)
+- 320×200: Even 25 scanlines per row (MGE) - divides evenly for TV display
+- 320×384: Double-height mode for detailed images (CM3)
+
+### Display Hardware
+
+**RGB vs Composite Output:**
+
+The CoCo 3 has dual video outputs with different color characteristics:
+
+**RGB Output ($FF98-$FF9F):**
+- Digital 6-bit RGB (2 bits per channel)
+- Direct palette register mapping
+- Clean, accurate colors
+- Requires RGB monitor or CGA-compatible display
+
+**Composite Output:**
+- Analog NTSC video signal
+- Subject to color bleed and artifacts
+- Requires palette adjustment for accurate colors
+- Works with standard TVs and composite monitors
+
+**Why Monitor Type Matters:**
+
+The same palette byte value produces different visual results:
+
+```c
+// Example: Palette value 0x12 (binary: 010010)
+// RGB interpretation:    R=1, G=0, B=2  → (85, 0, 170) → Purple
+// Composite conversion:  May shift to blue or magenta due to NTSC encoding
+
+// Artists created images with conversion tables to ensure
+// pictures looked correct on both monitor types
+```
+
+### Performance Considerations
+
+**File Loading:**
+```
+Typical load times (CoCo 3 at 1.78 MHz):
+- MAX file (6KB):        ~2 seconds from floppy
+- CM3 file (compressed): ~3-5 seconds (includes decompression)
+- MGE file (32KB raw):   ~10 seconds from floppy
+- CLP picture (varies):  <1 second for small images
+```
+
+**Compression Trade-offs:**
+- CM3: Complex but excellent ratio (often 4:1 to 8:1)
+- MGE: Simple RLE (typical 2:1 to 3:1)
+- Decompression speed vs file size trade-off matters on slow media
+
+**Memory Constraints:**
+- Only 128KB total RAM on base CoCo 3
+- Graphics data competes with program code and data
+- File formats designed to fit in available banks
+- Multiple frames for animation require careful memory management
+
+### Disk Format Integration
+
+These graphics files were commonly stored on CoCo disk formats:
+
+**OS-9 Disks:**
+- Native filesystem support
+- File attributes preserved
+- Used by professional software
+
+**DECB (Disk Extended Color BASIC):**
+- Simple flat filesystem
+- Files identified by extension
+- Most common for hobbyist graphics
+
+**Cassette Tape:**
+- MAX format particularly suited for tape
+- Small file size critical for loading speed
+- Binary format with simple header
+
+### Technical Limitations That Shaped Formats
+
+**Why Simple Headers?**
+- Minimal RAM overhead during file operations
+- Faster parsing on 8-bit CPU
+- Less code space needed in graphics programs
+
+**Why RLE Compression in MGE?**
+- Easy to implement in 6809 assembly
+- Decompresses directly to screen memory
+- No intermediate buffers needed
+
+**Why CM3's Complex Compression?**
+- Professional tool justified code complexity
+- Better ratios critical for floppy disk storage
+- Animation features required metadata structure
+
+**Why 16 Colors?**
+- Hardware limitation of GIME chip
+- 16-entry palette fits in 16 bytes
+- 4 bits per pixel allows 2 pixels per byte (efficient)
+
+---
+
 ## References
 
 ### Source Files
 
-- `main.py` - Reference implementation for all three formats
+- `main.py` - Reference implementation for all formats
 - `coco_dsk.py` - DSK image handler for extracting files
 - `maxtoppm_source.py` - Original MAX converter from coco-tools
 - `CLP File.txt` - MAX-10 technical reference guide
@@ -607,11 +949,13 @@ Use a library like libpng or stb_image_write for PNG output.
 
 - **MAX**: CoCoMax 1/2 by Colorware
 - **CM3**: CoCoMax 3 by Colorware
+- **MGE**: Graphics Exchange format used by ANIMTOOL and other CoCo 3 programs
 - **CLP**: MAX-10 Word Processor by Dave Stampe
 
 ### External Resources
 
 - coco-tools: https://github.com/jamieleecho/coco-tools
+- ANIMTOOL Documentation: https://exileinparadise.com/tandy_color_computer:animtool
 - Color Computer Archive: https://colorcomputerarchive.com
 - CoCopedia: https://www.cocopedia.com
 
