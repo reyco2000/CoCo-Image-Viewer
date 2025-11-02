@@ -376,6 +376,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Dave Stampe - MAX-10 CLP format technical documentation
 - Color Computer Archive - Sample files and documentation
 - Colorware - Original MAX and CM3 software
+- 🤖 *Developed with assistance from [Claude Code](https://claude.com/claude-code)*
 
 ## Resources
 
@@ -407,8 +408,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - ✅ Sample disk images included (4 DSK files)
 - ✅ Self-contained single-file design
 
----
+### About the Author
+Made with ❤️ by Reinaldo Torres — a proud CoCo enthusiast 📧 reyco2000@gmail.com
 
-**Made with ❤️ by ChipShift a CocoByte member for the TRS-80 Color Computer community**
+🟢 Proud member and co-creator of the CoCoByte Club https://cocobyte.co/
 
-🤖 *Developed with assistance from [Claude Code](https://claude.com/claude-code)*
+🔗 See more on @ChipShift https://github.com/reyco2000/
