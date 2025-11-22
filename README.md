@@ -1,13 +1,13 @@
 # CoCo Image Viewer
 
-A modern Python-based viewer for TRS-80 Color Computer (CoCo) graphics file formats. View and convert MAX, CM3, and CLP image files from vintage Color Computer disk images.
+A modern Python-based viewer for TRS-80 Color Computer (CoCo) graphics file formats. View and convert MAX, CM3, CLP, and MGE image files from vintage Color Computer disk images.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 
 ## Features
 
-- **Multiple Format Support**: MAX (CoCoMax 1/2), CM3 (CoCoMax 3), and CLP (MAX-10 Clipboard)
+- **Multiple Format Support**: MAX (CoCoMax 1/2), CM3 (CoCoMax 3), CLP (MAX-10 Clipboard), and MGE (Graphics Exchange)
 - **Dual Interface**: GUI viewer and command-line tools
 - **DSK Image Support**: Browse and extract files from Color Computer disk images
 - **High-Quality Conversion**: Export to modern PNG format
@@ -33,6 +33,13 @@ A modern Python-based viewer for TRS-80 Color Computer (CoCo) graphics file form
 - Container format with text, rulers, and graphics
 - Monochrome bitmap pictures
 - Variable dimensions
+
+### MGE Format (Graphics Exchange)
+- ANIMTOOL-style graphics exchange format
+- 320x200x16 resolution
+- RLE compression or raw bitmap
+- RGB/Composite monitor type support
+- 32-character title field
 
 ## Requirements
 
@@ -75,7 +82,7 @@ python3 main.py gui
 1. Click "Open DSK File" to browse for a disk image
 2. Navigate to the `DSK-sample` directory
 3. Select a DSK file (e.g., `CM3PIC01.DSK`, `CCMAX.DSK`, `CLIPART3.dsk`)
-4. Click on any MAX, CM3, or CLP file to view it
+4. Click on any MAX, CM3, CLP, or MGE file to view it
 5. Images display instantly in the viewer
 
 ![Screenshot](documentation/shared.png)
@@ -114,6 +121,11 @@ python3 main.py extract DSK-sample/CM3PIC01.DSK Jinx.CM3 output.png
 python3 main.py extract DSK-sample/CLIPART3.dsk SOCCER.CLP soccer.png
 ```
 
+**MGE files:**
+```bash
+python3 main.py extract DSK-sample/CLRMAX-1.DSK PICTURE.MGE output.png
+```
+
 ## Sample Files
 
 The repository includes sample disk images in the `DSK-sample/` directory:
@@ -123,7 +135,7 @@ The repository includes sample disk images in the `DSK-sample/` directory:
 | `CCMAX.DSK` | 158K | CoCoMax 1/2 images | MAX format files |
 | `CM3PIC01.DSK` | 158K | CoCoMax 3 images | CM3 format files (Jinx.CM3, Snail.CM3, etc.) |
 | `CLIPART3.dsk` | 158K | MAX-10 clip art | CLP format files (Sports: BASEBALL, SOCCER, HOCKEY, etc.) |
-| `CLRMAX-1.DSK` | 158K | ColorMax images | MGE format files (not yet supported) |
+| `CLRMAX-1.DSK` | 158K | ColorMax images | MGE format files |
 
 For additional DSK files, visit: https://colorcomputerarchive.com/repo/Disks/Pictures/
 
@@ -172,21 +184,22 @@ CoCo-Image-Viewer/
 
 #### Python Module
 
-- **main.py** (620+ lines)
+- **main.py** (820+ lines)
   - Primary entry point with embedded format converters
   - DSK parsing logic (DSKImage, DirectoryEntry classes)
   - MAX-to-PPM conversion (artifact colors with YIQ color space)
   - CM3-to-PPM conversion (decompression and palette handling)
   - CLP-to-PPM conversion (MAX-10 clipboard picture extraction)
+  - MGE-to-PPM conversion (RLE decompression and palette conversion)
   - Tkinter GUI application
   - CLI with three subcommands: `gui`, `list`, `extract`
   - Self-contained: all DSK file system logic is embedded
 
 #### Documentation
 
-- **[COCO-PICS-FORMATS.md](documentation/COCO-PICS-FORMATS.md)** (630 lines)
+- **[COCO-PICS-FORMATS.md](documentation/COCO-PICS-FORMATS.md)** (980+ lines)
   - Comprehensive technical reference for programmers
-  - Complete format specifications: MAX, CM3, CLP
+  - Complete format specifications: MAX, CM3, MGE, CLP
   - Byte-by-byte header breakdowns
   - Code examples and algorithms
   - Common pitfalls and optimization tips
@@ -205,7 +218,7 @@ All disk images are 158KB DSK/JVC format (DECB file system):
 - **CCMAX.DSK** - CoCoMax 1/2 pictures (MAX format)
 - **CM3PIC01.DSK** - CoCoMax 3 pictures with 16-color palettes
 - **CLIPART3.dsk** - Sports clipart: SOCCER, BASEBALL, HOCKEY, SURFER, etc.
-- **CLRMAX-1.DSK** - MGE format images (ColorMax format - future support)
+- **CLRMAX-1.DSK** - MGE format images (ColorMax/ANIMTOOL format)
 
 ## Architecture
 
@@ -214,7 +227,7 @@ All disk images are 158KB DSK/JVC format (DECB file system):
 `main.py` is intentionally self-contained with all functionality embedded:
 - **No external dependencies** except Pillow (PIL)
 - **Embedded DSK parser**: Complete DECB file system implementation
-- **Embedded format converters**: MAX, CM3, and CLP conversion logic
+- **Embedded format converters**: MAX, CM3, CLP, and MGE conversion logic
 - **Single-file distribution**: Easy to deploy and understand
 
 ### DSK File System (DECB)
@@ -248,19 +261,19 @@ All disk images are 158KB DSK/JVC format (DECB file system):
 ```
 DSK Image → Extract File → Parse Format → Convert to PPM → Save as PNG
      ↓            ↓              ↓               ↓              ↓
-  JVC/DECB    granules    MAX/CM3/CLP    RGB pixels    Pillow library
+  JVC/DECB    granules   MAX/CM3/CLP/MGE   RGB pixels    Pillow library
 ```
 
 ### Supported Operations
 
-| Operation | MAX | CM3 | CLP |
-|-----------|-----|-----|-----|
-| View in GUI | ✅ | ✅ | ✅ |
-| Extract to PNG | ✅ | ✅ | ✅ |
-| Artifact colors | ✅ (BR/RB) | ❌ | ❌ |
-| Palette support | ❌ | ✅ (16-color) | ❌ |
-| Compression | ❌ | ✅ (RLE) | ❌ |
-| Multiple images | ❌ | ❌ | First only |
+| Operation | MAX | CM3 | CLP | MGE |
+|-----------|-----|-----|-----|-----|
+| View in GUI | ✅ | ✅ | ✅ | ✅ |
+| Extract to PNG | ✅ | ✅ | ✅ | ✅ |
+| Artifact colors | ✅ (BR/RB) | ❌ | ❌ | ❌ |
+| Palette support | ❌ | ✅ (16-color) | ❌ | ✅ (16-color) |
+| Compression | ❌ | ✅ (RLE) | ❌ | ✅ (RLE) |
+| Monitor conversion | ❌ | ❌ | ❌ | ✅ (RGB/CMP) |
 
 ## Development
 
@@ -280,6 +293,10 @@ python3 main.py extract DSK-sample/CM3PIC01.DSK Jinx.CM3 test.png
 # Test CLP format (sports clipart)
 python3 main.py extract DSK-sample/CLIPART3.dsk SOCCER.CLP test.png
 python3 main.py extract DSK-sample/CLIPART3.dsk CATCHER.CLP test.png
+
+# Test MGE format
+python3 main.py list DSK-sample/CLRMAX-1.DSK
+python3 main.py extract DSK-sample/CLRMAX-1.DSK <filename>.MGE test.png
 ```
 
 ### Adding New Formats
@@ -298,8 +315,8 @@ To add support for additional Color Computer graphics formats:
 - CM3 motif/pattern data is read but not used in rendering
 - CLP files only extract the first picture paragraph
 - Maximum CLP image size: 7,660 bytes (per MAX-10 specification)
+- MGE format only supports resolution byte 0 (320x200)
 - GUI displays one image at a time (no multi-image gallery view)
-- MGE format (in CLRMAX-1.DSK) not yet supported
 
 ## Troubleshooting
 
@@ -345,14 +362,14 @@ Contributions are welcome! Please feel free to submit issues, feature requests, 
 
 ### Future Enhancement Ideas
 
-- [ ] Add MGE format support (ColorMax)
+- [x] Add MGE format support (ColorMax/ANIMTOOL)
 - [ ] Implement multi-image gallery view in GUI
 - [ ] Add batch conversion mode
 - [ ] Support for other CoCo formats (RAT, HRS, VEF, PIX)
 - [ ] Image preview thumbnails in file list
 - [ ] Export to multiple formats (BMP, GIF, etc.)
 - [ ] Zoom and pan controls in GUI
-- [ ] Color palette editor for CM3 images
+- [ ] Color palette editor for CM3/MGE images
 - [ ] Drag-and-drop DSK file loading
 
 ## License
@@ -393,10 +410,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Toolshed** - CoCo disk utilities
 
 ### Documentation in This Repository
-- **[COCO-PICS-FORMATS.md](documentation/COCO-PICS-FORMATS.md)** - Deep dive into MAX, CM3, and CLP formats
+- **[COCO-PICS-FORMATS.md](documentation/COCO-PICS-FORMATS.md)** - Deep dive into MAX, CM3, MGE, and CLP formats
 - **[CLP File.txt](documentation/CLP%20File.txt)** - Original MAX-10 format specification
 
 ## Version History
+
+### v1.1.0 (November 2025)
+- ✅ MGE format support (ColorMax/ANIMTOOL)
+- ✅ RLE decompression for MGE files
+- ✅ RGB/Composite monitor palette conversion
+- ✅ Updated documentation with MGE specifications
 
 ### v1.0.0 (November 2025)
 - ✅ MAX format support with artifact colors
