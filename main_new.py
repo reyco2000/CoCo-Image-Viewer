@@ -59,6 +59,8 @@ class ImageViewer(QMainWindow):
         self.current_pixmap = None
         self.current_pil_image = None
         self.current_scale = 1.0
+        self.current_filename = ""  # Current image filename (without extension)
+        self.current_extension = ""  # Current image extension
         self.all_files = []  # Store all files for filtering
         self.init_ui()
 
@@ -147,6 +149,12 @@ class ImageViewer(QMainWindow):
         self.btn_export.setEnabled(False)
         zoom_layout.addWidget(self.btn_export)
 
+        # Export All button
+        self.btn_export_all = QPushButton("Export All to PNG")
+        self.btn_export_all.clicked.connect(self.export_all_png)
+        self.btn_export_all.setEnabled(False)
+        zoom_layout.addWidget(self.btn_export_all)
+
         right_layout.addLayout(zoom_layout)
 
         # Scroll area for image
@@ -196,11 +204,15 @@ class ImageViewer(QMainWindow):
             # Update file list based on filter
             self.update_file_list()
 
+            # Enable Export All button
+            self.btn_export_all.setEnabled(True)
+
             self.status_bar.showMessage(f"Loaded: {filepath} ({len(self.dsk.directory)} files)")
         else:
             self.status_bar.showMessage("Failed to load DSK file")
             self.path_edit.setText("")
             self.dsk_path = ""
+            self.btn_export_all.setEnabled(False)
 
     def update_file_list(self):
         """Update file list based on filter checkbox state."""
@@ -283,11 +295,16 @@ class ImageViewer(QMainWindow):
             self.status_bar.showMessage("No image to export")
             return
 
+        # Generate default filename: FILENAME_EXT.png
+        default_name = ""
+        if self.current_filename and self.current_extension:
+            default_name = f"{self.current_filename}_{self.current_extension}.png"
+
         # Get save path
         filepath, _ = QFileDialog.getSaveFileName(
             self,
             "Export Image as PNG",
-            "",
+            default_name,
             "PNG files (*.png);;All files (*.*)"
         )
 
@@ -305,6 +322,100 @@ class ImageViewer(QMainWindow):
         except Exception as e:
             self.status_bar.showMessage(f"Export failed: {str(e)}")
 
+    def export_all_png(self):
+        """Export all supported image files as PNG to a selected directory."""
+        if not self.dsk:
+            self.status_bar.showMessage("No DSK file loaded")
+            return
+
+        # Ask user for output directory
+        output_dir = QFileDialog.getExistingDirectory(
+            self,
+            "Select Output Directory for PNG Export"
+        )
+
+        if not output_dir:
+            return
+
+        exported_count = 0
+        error_count = 0
+
+        # Loop through all files in DSK
+        for filename, entry in self.all_files:
+            ext = entry.extension.upper() if entry.extension else ""
+
+            # Only process supported extensions
+            if ext not in SUPPORTED_EXTENSIONS:
+                continue
+
+            try:
+                data = self.dsk.extract_file(entry)
+                if not data:
+                    error_count += 1
+                    continue
+
+                pil_image = None
+
+                # Convert based on format
+                if ext == "MAX":
+                    ppm_data, width, height = convert_max_to_ppm(data, 1, False, 256, None, 0, True)
+                    if ppm_data:
+                        pil_image = Image.open(BytesIO(ppm_data))
+
+                elif ext == "CM3":
+                    ppm_data, width, height = convert_cm3_to_ppm(data)
+                    if ppm_data:
+                        pil_image = Image.open(BytesIO(ppm_data))
+
+                elif ext == "CLP":
+                    ppm_data, width, height = convert_clp_to_ppm(data)
+                    if ppm_data:
+                        pil_image = Image.open(BytesIO(ppm_data))
+
+                elif ext == "MGE":
+                    ppm_data, width, height = convert_mge_to_ppm(data)
+                    if ppm_data:
+                        pil_image = Image.open(BytesIO(ppm_data))
+
+                elif ext == "MAC":
+                    ppm_data, width, height = convert_mac_to_ppm(data)
+                    if ppm_data:
+                        pil_image = Image.open(BytesIO(ppm_data))
+
+                elif ext == "PCX":
+                    ppm_data, width, height = convert_pcx_to_ppm(data)
+                    if ppm_data:
+                        pil_image = Image.open(BytesIO(ppm_data))
+
+                elif ext == "GIF":
+                    pil_image = Image.open(BytesIO(data))
+                    if pil_image.mode != 'RGB':
+                        pil_image = pil_image.convert('RGB')
+
+                # Save the image
+                if pil_image:
+                    # Format: FILENAME_EXTType.png
+                    output_filename = f"{entry.filename}_{ext}.png"
+                    output_path = f"{output_dir}/{output_filename}"
+                    pil_image.save(output_path, 'PNG')
+                    exported_count += 1
+                else:
+                    error_count += 1
+
+            except Exception as e:
+                print(f"Error exporting {filename}: {e}")
+                error_count += 1
+
+        # Show result
+        if error_count > 0:
+            self.status_bar.showMessage(
+                f"Exported {exported_count} images to {output_dir} ({error_count} errors)"
+            )
+        else:
+            self.status_bar.showMessage(
+                f"Exported {exported_count} images to {output_dir}"
+            )
+
     def on_file_select(self, item):
         if not self.dsk:
             return
@@ -313,6 +424,10 @@ class ImageViewer(QMainWindow):
         selected_entry = item.data(Qt.ItemDataRole.UserRole)
         if not selected_entry:
             return
+
+        # Track current filename and extension for export
+        self.current_filename = selected_entry.filename
+        self.current_extension = selected_entry.extension.upper()
 
         extension = selected_entry.extension.upper()
 
