@@ -594,40 +594,69 @@ def convert_mac_to_ppm(input_image_stream):
     """Convert MAC (MacPaint) format to PPM.
 
     MacPaint format:
-    - Optional 512-byte header (may contain metadata or be all zeros)
+    - Standard: 512-byte header + PackBits compressed bitmap
+    - PNTG variant: "PNTG" signature, data at offset 0x280 (640)
     - 720 scanlines of 72 bytes each (576 pixels wide, 1 bit per pixel)
-    - PackBits compressed bitmap data
     - Total uncompressed bitmap: 720 * 72 = 51840 bytes
 
     Returns:
         Tuple of (ppm_data, width, height) or (None, 0, 0) on error
     """
-    f = BytesIO(input_image_stream)
     out = BytesIO()
 
     try:
-        # MacPaint dimensions
+        file_data = input_image_stream
+        data_len = len(file_data)
+
+        # MacPaint dimensions (fixed)
         width = 576
         height = 720
         bytes_per_row = 72  # 576 / 8
-
-        # Read the file data
-        file_data = f.read()
-
-        # Check for 512-byte header
-        # MacPaint files typically have a 512-byte header followed by compressed data
-        # Some files may omit the header
-        if len(file_data) > 512:
-            # Try to detect if there's a header
-            # The header usually contains the version number or pattern data
-            # Check if skipping 512 bytes gives us valid PackBits data
-            compressed_data = file_data[512:]
-        else:
-            compressed_data = file_data
-
-        # Unpack the bitmap data
         expected_bytes = height * bytes_per_row  # 51840 bytes
-        bitmap = mac_unpack_bits(compressed_data, expected_bytes)
+
+        # Determine data offset based on format variant
+        offset = 0
+
+        # Check for PNTG variant (Mac resource fork format)
+        if b'PNTG' in file_data[:128]:
+            # PNTG format: data starts at offset 0x280 (640 bytes)
+            offset = 0x280
+        elif data_len > 512:
+            # Standard MacPaint: 512-byte header
+            # Check if this looks like a valid header by examining first bytes
+            # MacPaint header typically starts with version number (0, 2, or 3)
+            if file_data[0] in (0, 2, 3) or file_data[:4] == b'\x00\x00\x00\x00':
+                offset = 512
+            else:
+                # Try to auto-detect: check if data at offset 0 looks like PackBits
+                # vs data at offset 512
+                # If first byte at 0 looks like valid PackBits control, use 0
+                # Otherwise use 512
+                offset = 512
+
+        # Ensure we have enough data
+        if offset >= data_len:
+            offset = 0
+
+        image_data = file_data[offset:]
+
+        # Detect if data is compressed or raw
+        # If first byte > 128, it's likely PackBits compressed
+        is_compressed = len(image_data) > 0 and image_data[0] > 128
+
+        # Also check: if remaining data is close to expected uncompressed size,
+        # it's probably uncompressed
+        if len(image_data) >= expected_bytes - 100 and len(image_data) <= expected_bytes + 100:
+            is_compressed = False
+
+        if is_compressed:
+            bitmap = mac_unpack_bits(image_data, expected_bytes)
+        else:
+            # Uncompressed data - just pad/truncate to expected size
+            if len(image_data) < expected_bytes:
+                bitmap = image_data + bytes(expected_bytes - len(image_data))
+            else:
+                bitmap = image_data[:expected_bytes]
 
         # Write PPM header
         out.write(f"P6\n{width} {height}\n255\n".encode('ascii'))
