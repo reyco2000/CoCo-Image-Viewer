@@ -9,7 +9,8 @@ from PIL import Image
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QListWidget, QLabel, QFileDialog, QScrollArea,
-    QSplitter, QFrame, QStatusBar
+    QSplitter, QFrame, QStatusBar, QLineEdit, QSlider, QCheckBox,
+    QListWidgetItem
 )
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtCore import Qt
@@ -24,6 +25,9 @@ from coco_image_formats import (
     convert_pcx_to_ppm,
     convert_clp_to_ppm,
 )
+
+# Supported image extensions
+SUPPORTED_EXTENSIONS = {'MAX', 'CM3', 'CLP', 'MGE', 'MAC', 'PCX', 'GIF'}
 
 
 def pil_to_qpixmap(pil_image):
@@ -44,10 +48,18 @@ def pil_to_qpixmap(pil_image):
 
 
 class ImageViewer(QMainWindow):
+    # Zoom scale options
+    ZOOM_SCALES = [0.25, 0.50, 1.0, 1.25, 1.50, 2.0]
+    ZOOM_LABELS = ['0.25x', '0.50x', '1x', '1.25x', '1.50x', '2x']
+
     def __init__(self):
         super().__init__()
         self.dsk = None
+        self.dsk_path = ""
         self.current_pixmap = None
+        self.current_pil_image = None
+        self.current_scale = 1.0
+        self.all_files = []  # Store all files for filtering
         self.init_ui()
 
     def init_ui(self):
@@ -61,33 +73,83 @@ class ImageViewer(QMainWindow):
         # Main layout
         main_layout = QVBoxLayout(central_widget)
 
-        # Top button bar
-        button_layout = QHBoxLayout()
+        # Top bar - Open button and DSK path
+        top_layout = QHBoxLayout()
+
         self.btn_open = QPushButton("Open DSK File")
         self.btn_open.clicked.connect(self.open_dsk)
-        button_layout.addWidget(self.btn_open)
-        button_layout.addStretch()
-        main_layout.addLayout(button_layout)
+        self.btn_open.setFixedWidth(120)
+        top_layout.addWidget(self.btn_open)
+
+        # DSK path display (read-only)
+        self.path_label = QLabel("Disk:")
+        top_layout.addWidget(self.path_label)
+
+        self.path_edit = QLineEdit()
+        self.path_edit.setReadOnly(True)
+        self.path_edit.setStyleSheet("background-color: #e0e0e0; color: #606060;")
+        self.path_edit.setPlaceholderText("No disk mounted")
+        top_layout.addWidget(self.path_edit)
+
+        main_layout.addLayout(top_layout)
 
         # Create splitter for file list and image view
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # Left panel - File list
+        # Left panel - File list with filter checkbox
         left_frame = QFrame()
         left_layout = QVBoxLayout(left_frame)
-        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setContentsMargins(5, 5, 5, 5)
 
+        # Filter checkbox
+        self.filter_checkbox = QCheckBox("Show only supported files")
+        self.filter_checkbox.setChecked(False)
+        self.filter_checkbox.stateChanged.connect(self.update_file_list)
+        left_layout.addWidget(self.filter_checkbox)
+
+        # File list
         self.file_list = QListWidget()
         self.file_list.itemClicked.connect(self.on_file_select)
         left_layout.addWidget(self.file_list)
 
         splitter.addWidget(left_frame)
 
-        # Right panel - Image display with scroll area
+        # Right panel - Image display with controls
         right_frame = QFrame()
         right_layout = QVBoxLayout(right_frame)
-        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setContentsMargins(5, 5, 5, 5)
 
+        # Zoom controls
+        zoom_layout = QHBoxLayout()
+
+        zoom_label = QLabel("Zoom:")
+        zoom_layout.addWidget(zoom_label)
+
+        self.zoom_slider = QSlider(Qt.Orientation.Horizontal)
+        self.zoom_slider.setMinimum(0)
+        self.zoom_slider.setMaximum(len(self.ZOOM_SCALES) - 1)
+        self.zoom_slider.setValue(2)  # Default to 1x (index 2)
+        self.zoom_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.zoom_slider.setTickInterval(1)
+        self.zoom_slider.setFixedWidth(200)
+        self.zoom_slider.valueChanged.connect(self.on_zoom_changed)
+        zoom_layout.addWidget(self.zoom_slider)
+
+        self.zoom_value_label = QLabel("1x")
+        self.zoom_value_label.setFixedWidth(50)
+        zoom_layout.addWidget(self.zoom_value_label)
+
+        zoom_layout.addStretch()
+
+        # Export button
+        self.btn_export = QPushButton("Export as PNG")
+        self.btn_export.clicked.connect(self.export_png)
+        self.btn_export.setEnabled(False)
+        zoom_layout.addWidget(self.btn_export)
+
+        right_layout.addLayout(zoom_layout)
+
+        # Scroll area for image
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -100,8 +162,8 @@ class ImageViewer(QMainWindow):
         right_layout.addWidget(self.scroll_area)
         splitter.addWidget(right_frame)
 
-        # Set splitter sizes (200px for file list, rest for image)
-        splitter.setSizes([200, 800])
+        # Set splitter sizes (250px for file list, rest for image)
+        splitter.setSizes([250, 750])
 
         main_layout.addWidget(splitter)
 
@@ -122,35 +184,136 @@ class ImageViewer(QMainWindow):
 
         self.dsk = DSKImage(filepath)
         if self.dsk.mount():
-            self.file_list.clear()
+            self.dsk_path = filepath
+            self.path_edit.setText(filepath)
+
+            # Store all files
+            self.all_files = []
             for entry in self.dsk.directory:
                 filename = f"{entry.filename}.{entry.extension}" if entry.extension else entry.filename
-                self.file_list.addItem(filename)
+                self.all_files.append((filename, entry))
+
+            # Update file list based on filter
+            self.update_file_list()
+
             self.status_bar.showMessage(f"Loaded: {filepath} ({len(self.dsk.directory)} files)")
         else:
             self.status_bar.showMessage("Failed to load DSK file")
+            self.path_edit.setText("")
+            self.dsk_path = ""
 
-    def display_image(self, pil_image):
-        """Display a PIL Image in the scroll area."""
-        width, height = pil_image.size
+    def update_file_list(self):
+        """Update file list based on filter checkbox state."""
+        self.file_list.clear()
 
-        # Convert PIL image to QPixmap
-        self.current_pixmap = pil_to_qpixmap(pil_image)
+        filter_enabled = self.filter_checkbox.isChecked()
 
-        # Display in label
+        for filename, entry in self.all_files:
+            ext = entry.extension.upper() if entry.extension else ""
+
+            if filter_enabled and ext not in SUPPORTED_EXTENSIONS:
+                continue
+
+            item = QListWidgetItem(filename)
+            # Store the original index for later retrieval
+            item.setData(Qt.ItemDataRole.UserRole, entry)
+            self.file_list.addItem(item)
+
+        # Update status
+        visible_count = self.file_list.count()
+        total_count = len(self.all_files)
+        if filter_enabled:
+            self.status_bar.showMessage(f"Showing {visible_count} of {total_count} files (filtered)")
+        else:
+            self.status_bar.showMessage(f"Showing {total_count} files")
+
+    def on_zoom_changed(self, value):
+        """Handle zoom slider change."""
+        self.current_scale = self.ZOOM_SCALES[value]
+        self.zoom_value_label.setText(self.ZOOM_LABELS[value])
+
+        # Update displayed image if we have one
+        if self.current_pil_image:
+            self.update_displayed_image()
+
+    def update_displayed_image(self):
+        """Update the displayed image with current zoom level."""
+        if not self.current_pil_image:
+            return
+
+        # Get original size
+        orig_width, orig_height = self.current_pil_image.size
+
+        # Calculate new size
+        new_width = int(orig_width * self.current_scale)
+        new_height = int(orig_height * self.current_scale)
+
+        # Resize image
+        if self.current_scale != 1.0:
+            resample = Image.Resampling.NEAREST if self.current_scale > 1.0 else Image.Resampling.LANCZOS
+            scaled_image = self.current_pil_image.resize((new_width, new_height), resample)
+        else:
+            scaled_image = self.current_pil_image
+
+        # Convert to QPixmap and display
+        self.current_pixmap = pil_to_qpixmap(scaled_image)
         self.image_label.setPixmap(self.current_pixmap)
         self.image_label.adjustSize()
 
+        # Update status
+        self.status_bar.showMessage(
+            f"Image: {orig_width}x{orig_height} | Display: {new_width}x{new_height} ({self.ZOOM_LABELS[self.zoom_slider.value()]})"
+        )
+
+    def display_image(self, pil_image):
+        """Display a PIL Image in the scroll area."""
+        self.current_pil_image = pil_image
+        self.btn_export.setEnabled(True)
+
         # Update window title with dimensions
+        width, height = pil_image.size
         self.setWindowTitle(f"CoCo Image Viewer - {width}x{height}")
-        self.status_bar.showMessage(f"Image: {width}x{height} pixels")
+
+        # Display with current zoom level
+        self.update_displayed_image()
+
+    def export_png(self):
+        """Export current image as PNG."""
+        if not self.current_pil_image:
+            self.status_bar.showMessage("No image to export")
+            return
+
+        # Get save path
+        filepath, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Image as PNG",
+            "",
+            "PNG files (*.png);;All files (*.*)"
+        )
+
+        if not filepath:
+            return
+
+        # Ensure .png extension
+        if not filepath.lower().endswith('.png'):
+            filepath += '.png'
+
+        try:
+            self.current_pil_image.save(filepath, 'PNG')
+            width, height = self.current_pil_image.size
+            self.status_bar.showMessage(f"Exported: {filepath} ({width}x{height})")
+        except Exception as e:
+            self.status_bar.showMessage(f"Export failed: {str(e)}")
 
     def on_file_select(self, item):
         if not self.dsk:
             return
 
-        selected_index = self.file_list.row(item)
-        selected_entry = self.dsk.directory[selected_index]
+        # Get the entry from the item's data
+        selected_entry = item.data(Qt.ItemDataRole.UserRole)
+        if not selected_entry:
+            return
+
         extension = selected_entry.extension.upper()
 
         try:
