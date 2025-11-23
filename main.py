@@ -1000,18 +1000,45 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("CoCo MAX/CM3/CLP/MGE/MAC/PCX/GIF DSK Viewer")
-        self.geometry("800x600")
+        self.geometry("900x800")
         self.dsk = None
 
+        # Top frame for button
         self.btn_open = tk.Button(self, text="Open DSK File", command=self.open_dsk)
-        self.btn_open.pack(pady=10)
+        self.btn_open.pack(pady=5)
 
-        self.file_list = tk.Listbox(self)
-        self.file_list.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+        # Create a paned window for file list and image
+        self.paned = tk.PanedWindow(self, orient=tk.HORIZONTAL)
+        self.paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Left frame for file list
+        self.left_frame = tk.Frame(self.paned)
+        self.paned.add(self.left_frame, width=200)
+
+        self.file_list = tk.Listbox(self.left_frame)
+        self.file_list.pack(fill=tk.BOTH, expand=True)
         self.file_list.bind("<<ListboxSelect>>", self.on_file_select)
 
-        self.image_label = tk.Label(self)
-        self.image_label.pack(pady=10)
+        # Right frame for image with scrollbars
+        self.right_frame = tk.Frame(self.paned)
+        self.paned.add(self.right_frame)
+
+        # Create canvas with scrollbars for image display
+        self.canvas = tk.Canvas(self.right_frame, bg='gray')
+        self.h_scrollbar = tk.Scrollbar(self.right_frame, orient=tk.HORIZONTAL, command=self.canvas.xview)
+        self.v_scrollbar = tk.Scrollbar(self.right_frame, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.canvas.configure(xscrollcommand=self.h_scrollbar.set, yscrollcommand=self.v_scrollbar.set)
+
+        # Grid layout for canvas and scrollbars
+        self.canvas.grid(row=0, column=0, sticky='nsew')
+        self.v_scrollbar.grid(row=0, column=1, sticky='ns')
+        self.h_scrollbar.grid(row=1, column=0, sticky='ew')
+
+        self.right_frame.grid_rowconfigure(0, weight=1)
+        self.right_frame.grid_columnconfigure(0, weight=1)
+
+        self.photo = None
+        self.canvas_image = None
 
     def open_dsk(self):
         filepath = filedialog.askopenfilename(
@@ -1026,6 +1053,24 @@ class App(tk.Tk):
             for entry in self.dsk.directory:
                 filename = f"{entry.filename}.{entry.extension}" if entry.extension else entry.filename
                 self.file_list.insert(tk.END, filename)
+
+    def display_image(self, img):
+        """Display a PIL Image on the scrollable canvas."""
+        self.photo = ImageTk.PhotoImage(img)
+
+        # Clear previous image
+        if self.canvas_image:
+            self.canvas.delete(self.canvas_image)
+
+        # Update canvas scroll region to image size
+        width, height = img.size
+        self.canvas.configure(scrollregion=(0, 0, width, height))
+
+        # Create image at top-left corner
+        self.canvas_image = self.canvas.create_image(0, 0, anchor='nw', image=self.photo)
+
+        # Update window title with image dimensions
+        self.title(f"CoCo Image Viewer - {width}x{height}")
 
     def on_file_select(self, event):
         selection = event.widget.curselection()
@@ -1042,8 +1087,7 @@ class App(tk.Tk):
                 if ppm_data:
                     try:
                         img = Image.open(BytesIO(ppm_data))
-                        self.photo = ImageTk.PhotoImage(img)
-                        self.image_label.config(image=self.photo)
+                        self.display_image(img)
                     except Exception as e:
                         print(f"Error displaying image: {e}")
 
@@ -1053,8 +1097,7 @@ class App(tk.Tk):
                 try:
                     ppm_data, width, height = convert_cm3_to_ppm(cm3_data)
                     img = Image.open(BytesIO(ppm_data))
-                    self.photo = ImageTk.PhotoImage(img)
-                    self.image_label.config(image=self.photo)
+                    self.display_image(img)
                 except Exception as e:
                     print(f"Error displaying CM3 image: {e}")
 
@@ -1065,8 +1108,7 @@ class App(tk.Tk):
                     ppm_data, width, height = convert_clp_to_ppm(clp_data)
                     if ppm_data:
                         img = Image.open(BytesIO(ppm_data))
-                        self.photo = ImageTk.PhotoImage(img)
-                        self.image_label.config(image=self.photo)
+                        self.display_image(img)
                     else:
                         print("No picture found in CLP file")
                 except Exception as e:
@@ -1079,8 +1121,7 @@ class App(tk.Tk):
                     ppm_data, width, height = convert_mge_to_ppm(mge_data)
                     if ppm_data:
                         img = Image.open(BytesIO(ppm_data))
-                        self.photo = ImageTk.PhotoImage(img)
-                        self.image_label.config(image=self.photo)
+                        self.display_image(img)
                     else:
                         print("Failed to convert MGE file")
                 except Exception as e:
@@ -1093,8 +1134,7 @@ class App(tk.Tk):
                     ppm_data, width, height = convert_mac_to_ppm(mac_data)
                     if ppm_data:
                         img = Image.open(BytesIO(ppm_data))
-                        self.photo = ImageTk.PhotoImage(img)
-                        self.image_label.config(image=self.photo)
+                        self.display_image(img)
                     else:
                         print("Failed to convert MAC file")
                 except Exception as e:
@@ -1107,8 +1147,7 @@ class App(tk.Tk):
                     ppm_data, width, height = convert_pcx_to_ppm(pcx_data)
                     if ppm_data:
                         img = Image.open(BytesIO(ppm_data))
-                        self.photo = ImageTk.PhotoImage(img)
-                        self.image_label.config(image=self.photo)
+                        self.display_image(img)
                     else:
                         print("Failed to convert PCX file")
                 except Exception as e:
@@ -1123,8 +1162,7 @@ class App(tk.Tk):
                     # Convert to RGB if needed (for consistency)
                     if img.mode != 'RGB':
                         img = img.convert('RGB')
-                    self.photo = ImageTk.PhotoImage(img)
-                    self.image_label.config(image=self.photo)
+                    self.display_image(img)
                 except Exception as e:
                     print(f"Error displaying GIF image: {e}")
 
