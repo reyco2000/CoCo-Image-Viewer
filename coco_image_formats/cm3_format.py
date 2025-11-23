@@ -1,0 +1,115 @@
+"""
+CM3 (CoCoMax 3) image format converter.
+"""
+
+from io import BytesIO
+from .utils import getbit, pack
+
+
+def convert_cm3_to_ppm(input_image_stream):
+    """Convert CM3 (CoCoMax 3) format to PPM.
+
+    Args:
+        input_image_stream: Raw bytes of the CM3 file
+
+    Returns:
+        Tuple of (ppm_data, width, height)
+    """
+    def dump(palette_index, palette, out):
+        """Output RGB values for a palette index"""
+        c = palette[palette_index]
+        r = (getbit(c, 5) * 2 + getbit(c, 2)) * 85
+        g = (getbit(c, 4) * 2 + getbit(c, 1)) * 85
+        b = (getbit(c, 3) * 2 + getbit(c, 0)) * 85
+        out.write(pack([r, g, b]))
+
+    f = BytesIO(input_image_stream)
+    out = BytesIO()
+
+    # Read picture type byte
+    cols = 320
+    pictyp = f.read(1)[0]
+    rows = (getbit(pictyp, 7) + 1) * 192  # 192 or 384 rows
+    sans_motifs = getbit(pictyp, 0) != 0
+
+    # Read palette (16 bytes)
+    palette = [f.read(1)[0] for _ in range(16)]
+
+    # Read animation and cycle data
+    anirat = f.read(1)[0]
+    cycrat = f.read(1)[0]
+    cm3cyc = [f.read(1)[0] for _ in range(8)]
+    aniflg = (f.read(1)[0] & 0x80) != 0
+    cycflg = (f.read(1)[0] & 0x80) != 0
+
+    # Skip motif data if present
+    if not sans_motifs:
+        f.read(243)
+
+    # Initialize buffers for decompression
+    linbuf = [0] * 160
+    buff1 = [0] * 20
+    buff2 = []
+
+    # Write PPM header
+    out.write(f"P6\n{cols} {rows}\n255\n".encode('ascii'))
+
+    # Process image data
+    for page in range(getbit(pictyp, 7) + 1):
+        lines = f.read(1)[0]
+        for line_idx in range(lines):
+            u = 0
+            y = 0
+            bitu = 7
+            bity = 7
+            x = 0
+
+            # Read control byte
+            contr = f.read(1)[0]
+
+            if contr < 128:
+                # Compressed mode: read reference buffers
+                for k in range(20):
+                    buff1[k] = f.read(1)[0]
+                buff2 = []
+                for k in range(contr):
+                    buff2.append(f.read(1)[0])
+
+            # Decode 160 bytes (320 pixels, 2 pixels per byte)
+            for k in range(160):
+                if contr >= 128:
+                    # Uncompressed mode: read directly
+                    a = f.read(1)[0]
+                else:
+                    # Compressed mode: use reference buffers
+                    cc = getbit(buff1[u], bitu)
+                    bitu -= 1
+                    if bitu < 0:
+                        bitu = 7
+                        u += 1
+
+                    if cc == 0:
+                        # Copy from previous pixel in line
+                        a = linbuf[(x - 1) % 160]
+                    else:
+                        # Check second buffer
+                        cc = getbit(buff2[y], bity)
+                        bity -= 1
+                        if bity < 0:
+                            bity = 7
+                            y += 1
+
+                        if cc == 0:
+                            # Copy from same position in previous line
+                            a = linbuf[x]
+                        else:
+                            # Read new byte
+                            a = f.read(1)[0]
+
+                linbuf[x] = a
+                # Each byte contains 2 pixels (4 bits each)
+                dump(a >> 4, palette, out)  # High nibble
+                dump(a & 15, palette, out)  # Low nibble
+                x += 1
+
+    return out.getvalue(), cols, rows
