@@ -2,7 +2,7 @@
 
 **Technical Reference for Programmers**
 
-This document provides comprehensive technical specifications for four graphics file formats used on the TRS-80 Color Computer (CoCo): MAX, CM3, MGE, and CLP.
+This document provides comprehensive technical specifications for graphics file formats supported by CoCo Image Viewer: MAX, CM3, MGE, CLP (TRS-80 Color Computer native formats), as well as MAC (MacPaint), PCX (PC Paintbrush), and GIF formats commonly found on vintage disk images.
 
 ---
 
@@ -12,9 +12,12 @@ This document provides comprehensive technical specifications for four graphics 
 2. [CM3 Format (CoCoMax 3)](#cm3-format-cocomax-3)
 3. [MGE Format (Graphics Exchange)](#mge-format-graphics-exchange)
 4. [CLP Format (MAX-10 Clipboard)](#clp-format-max-10-clipboard)
-5. [Implementation Notes](#implementation-notes)
-6. [Hardware Context](#hardware-context)
-7. [References](#references)
+5. [MAC Format (MacPaint)](#mac-format-macpaint)
+6. [PCX Format (PC Paintbrush)](#pcx-format-pc-paintbrush)
+7. [GIF Format](#gif-format)
+8. [Implementation Notes](#implementation-notes)
+9. [Hardware Context](#hardware-context)
+10. [References](#references)
 
 ---
 
@@ -679,6 +682,337 @@ Offset    Hex                                          Description
 
 ---
 
+## MAC Format (MacPaint)
+
+### Overview
+
+MAC files are monochrome bitmap images created by MacPaint on the original Apple Macintosh. While not a native CoCo format, MAC files are commonly found on vintage disk images due to cross-platform file sharing. The format uses PackBits compression for efficient storage.
+
+### File Structure
+
+```
+┌─────────────────────────────────────┐
+│ Header (512 bytes standard)         │
+│   or (640 bytes PNTG variant)       │
+├─────────────────────────────────────┤
+│ Compressed Bitmap Data              │
+│   (PackBits encoded)                │
+└─────────────────────────────────────┘
+```
+
+### Header Variants
+
+MAC files come in several variants:
+
+| Variant | Header Size | Detection Method |
+|---------|-------------|------------------|
+| Standard | 512 bytes | First bytes: 0x00, 0x02, or 0x03 |
+| PNTG | 640 bytes | "PNTG" signature in first 128 bytes |
+| Headerless | 0 bytes | Compressed data starts immediately |
+
+### Image Dimensions
+
+All MAC files use fixed dimensions:
+
+- **Width**: 576 pixels (72 bytes per row)
+- **Height**: 720 pixels
+- **Color Depth**: 1 bit per pixel (monochrome)
+- **Total Pixels**: 414,720
+- **Uncompressed Size**: 51,840 bytes
+
+### PackBits Compression
+
+MAC files use Apple's PackBits run-length encoding:
+
+```c
+// Decompression algorithm
+uint8_t output[51840];  // 72 bytes × 720 rows
+int pos = 0;
+
+while (pos < 51840 && input_available()) {
+    int8_t header = read_signed_byte();
+
+    if (header >= 0) {
+        // Literal run: copy (header + 1) bytes
+        int count = header + 1;
+        for (int i = 0; i < count && pos < 51840; i++) {
+            output[pos++] = read_byte();
+        }
+    } else if (header != -128) {
+        // Repeated run: repeat next byte (1 - header) times
+        int count = 1 - header;
+        uint8_t value = read_byte();
+        for (int i = 0; i < count && pos < 51840; i++) {
+            output[pos++] = value;
+        }
+    }
+    // header == -128 is a no-op (skip)
+}
+```
+
+**PackBits Rules:**
+- Header byte 0 to 127: Copy next (n+1) literal bytes
+- Header byte -1 to -127: Repeat next byte (1-n) times
+- Header byte -128: No operation (skip)
+
+### Bitmap Format
+
+- **Bit Order**: MSB first (bit 7 = leftmost pixel)
+- **Color Mapping**: 0 = white, 1 = black
+- **Row Order**: Top to bottom
+- **Byte Order**: Left to right within each row
+
+```
+Byte layout for 8 pixels:
+  Bit 7  Bit 6  Bit 5  Bit 4  Bit 3  Bit 2  Bit 1  Bit 0
+   ↓      ↓      ↓      ↓      ↓      ↓      ↓      ↓
+  Px0    Px1    Px2    Px3    Px4    Px5    Px6    Px7
+```
+
+### Example MAC File
+
+```
+Offset    Hex                                          Description
+──────────────────────────────────────────────────────────────────────
+00000000  00 00 00 00 ... (512 bytes)                  Standard header
+00000200  FF 00 FE 3C ...                             PackBits data start
+          │  │  │  │
+          │  │  │  └──► Value 0x3C to repeat
+          │  │  └─────► Repeat 3 times (1 - (-2) = 3)
+          │  └────────► Value 0x00
+          └───────────► Copy 1 byte literally (0 + 1 = 1)
+```
+
+---
+
+## PCX Format (PC Paintbrush)
+
+### Overview
+
+PCX is a bitmap image format developed by ZSoft Corporation for PC Paintbrush. It supports multiple color depths and uses run-length encoding compression. PCX files are commonly found on vintage disk images due to the format's popularity in the DOS era.
+
+### File Structure
+
+```
+┌─────────────────────────────────────┐
+│ Header (128 bytes)                  │
+├─────────────────────────────────────┤
+│ RLE Compressed Image Data           │
+├─────────────────────────────────────┤
+│ VGA Palette (optional, 769 bytes)   │
+│   (only for 8-bit images)           │
+└─────────────────────────────────────┘
+```
+
+### Header Format (128 bytes)
+
+| Offset | Size | Type     | Description                              |
+|--------|------|----------|------------------------------------------|
+| 0x00   | 1    | uint8    | Manufacturer (always 0x0A for ZSoft)    |
+| 0x01   | 1    | uint8    | Version (0, 2, 3, 4, or 5)              |
+| 0x02   | 1    | uint8    | Encoding (1 = RLE)                       |
+| 0x03   | 1    | uint8    | Bits per pixel per plane                 |
+| 0x04   | 2    | uint16   | X minimum (little-endian)               |
+| 0x06   | 2    | uint16   | Y minimum (little-endian)               |
+| 0x08   | 2    | uint16   | X maximum (little-endian)               |
+| 0x0A   | 2    | uint16   | Y maximum (little-endian)               |
+| 0x0C   | 2    | uint16   | Horizontal DPI                          |
+| 0x0E   | 2    | uint16   | Vertical DPI                            |
+| 0x10   | 48   | uint8[48]| EGA palette (16 colors × 3 bytes RGB)   |
+| 0x40   | 1    | uint8    | Reserved                                 |
+| 0x41   | 1    | uint8    | Number of color planes                   |
+| 0x42   | 2    | uint16   | Bytes per line per plane                 |
+| 0x44   | 2    | uint16   | Palette info (1=color, 2=grayscale)     |
+| 0x46   | 2    | uint16   | Horizontal screen size                   |
+| 0x48   | 2    | uint16   | Vertical screen size                     |
+| 0x4A   | 54   | uint8[54]| Reserved (padding to 128 bytes)         |
+
+### Calculating Image Dimensions
+
+```c
+uint16_t width = (header.xmax - header.xmin) + 1;
+uint16_t height = (header.ymax - header.ymin) + 1;
+uint8_t total_bits = header.bits_per_pixel * header.num_planes;
+```
+
+### Color Depth Variants
+
+| Bits/Pixel | Planes | Total Bits | Colors | Description |
+|------------|--------|------------|--------|-------------|
+| 1          | 1      | 1          | 2      | Monochrome  |
+| 1          | 4      | 4          | 16     | EGA         |
+| 8          | 1      | 8          | 256    | VGA         |
+| 8          | 3      | 24         | 16.7M  | True Color  |
+
+### RLE Compression
+
+PCX uses a simple run-length encoding:
+
+```c
+// Decompression algorithm
+uint8_t* output = malloc(bytes_per_line * num_planes * height);
+int pos = 0;
+int total_bytes = bytes_per_line * num_planes * height;
+
+while (pos < total_bytes) {
+    uint8_t byte = read_byte();
+
+    if ((byte & 0xC0) == 0xC0) {
+        // Run: lower 6 bits = count, next byte = value
+        int count = byte & 0x3F;
+        uint8_t value = read_byte();
+        for (int i = 0; i < count && pos < total_bytes; i++) {
+            output[pos++] = value;
+        }
+    } else {
+        // Literal byte
+        output[pos++] = byte;
+    }
+}
+```
+
+**RLE Rules:**
+- Bytes 0x00-0xBF: Literal value (single byte)
+- Bytes 0xC0-0xFF: Run marker (lower 6 bits = count 1-63, next byte = value)
+
+### EGA Palette (16 colors)
+
+Located at offset 0x10 in header, 48 bytes total:
+
+```c
+// Reading EGA palette
+for (int i = 0; i < 16; i++) {
+    palette[i].r = header[0x10 + i*3 + 0];
+    palette[i].g = header[0x10 + i*3 + 1];
+    palette[i].b = header[0x10 + i*3 + 2];
+}
+```
+
+### VGA Palette (256 colors)
+
+For 8-bit images, a 256-color palette is stored at the end of the file:
+
+```c
+// Check for VGA palette
+fseek(file, -769, SEEK_END);
+uint8_t marker = read_byte();
+
+if (marker == 0x0C) {
+    // VGA palette present
+    for (int i = 0; i < 256; i++) {
+        palette[i].r = read_byte();
+        palette[i].g = read_byte();
+        palette[i].b = read_byte();
+    }
+}
+```
+
+### Plane Interleaving (Multi-plane images)
+
+For EGA (4-plane) images, planes are interleaved by scanline:
+
+```c
+// Reading a single scanline
+for (int plane = 0; plane < num_planes; plane++) {
+    for (int x = 0; x < bytes_per_line; x++) {
+        plane_data[plane][x] = read_byte();
+    }
+}
+
+// Converting to pixel values (4-plane EGA)
+for (int x = 0; x < width; x++) {
+    int byte_idx = x / 8;
+    int bit_idx = 7 - (x % 8);
+
+    uint8_t pixel = 0;
+    for (int plane = 0; plane < 4; plane++) {
+        if (plane_data[plane][byte_idx] & (1 << bit_idx)) {
+            pixel |= (1 << plane);
+        }
+    }
+    output_pixel(palette[pixel]);
+}
+```
+
+### Example PCX File
+
+```
+Offset    Hex                                          Description
+──────────────────────────────────────────────────────────────────────
+00000000  0A 05 01 08                                  ZSoft, v5, RLE, 8bpp
+00000004  00 00 00 00                                  X/Y min = 0, 0
+00000008  3F 01 C7 00                                  X/Y max = 319, 199
+0000000C  48 00 48 00                                  72 DPI
+00000010  00 00 00 AA 00 ...                          EGA palette (48 bytes)
+00000040  00                                           Reserved
+00000041  01                                           1 plane
+00000042  40 01                                        320 bytes per line
+00000044  01 00                                        Color palette
+...
+00000080  C1 FF C3 00 ...                             RLE data starts
+          │     │
+          │     └──► Run of 3 zeros
+          └────────► Run of 1 × 0xFF
+```
+
+---
+
+## GIF Format
+
+### Overview
+
+GIF (Graphics Interchange Format) is a bitmap image format developed by CompuServe in 1987. While not a CoCo-native format, GIF files are commonly found on vintage disk images. GIF support in CoCo Image Viewer is provided natively through the PIL/Pillow library.
+
+### Key Characteristics
+
+- **Color Depth**: Up to 256 colors (8-bit indexed)
+- **Compression**: LZW (Lempel-Ziv-Welch)
+- **Transparency**: Supported (GIF89a)
+- **Animation**: Supported (multiple frames)
+- **Versions**: GIF87a (original) and GIF89a (extended)
+
+### File Structure (Simplified)
+
+```
+┌─────────────────────────────────────┐
+│ Header (6 bytes)                    │
+│   "GIF87a" or "GIF89a"              │
+├─────────────────────────────────────┤
+│ Logical Screen Descriptor (7 bytes) │
+├─────────────────────────────────────┤
+│ Global Color Table (optional)       │
+├─────────────────────────────────────┤
+│ Image Data Blocks                   │
+├─────────────────────────────────────┤
+│ Trailer (0x3B)                      │
+└─────────────────────────────────────┘
+```
+
+### Implementation Note
+
+GIF decoding is complex due to LZW compression and variable-length codes. CoCo Image Viewer uses PIL/Pillow's native GIF support rather than implementing a custom decoder:
+
+```python
+from PIL import Image
+from io import BytesIO
+
+def load_gif(data):
+    """Load GIF using PIL/Pillow."""
+    img = Image.open(BytesIO(data))
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+    return img
+```
+
+### Why GIF Support?
+
+- Cross-platform file sharing was common in vintage computing
+- GIF was popular for distributing graphics in the BBS era
+- Many vintage disk archives contain GIF files alongside native formats
+- PIL provides robust, well-tested GIF decoding
+
+---
+
 ## Implementation Notes
 
 ### Common Pitfalls
@@ -951,6 +1285,9 @@ These graphics files were commonly stored on CoCo disk formats:
 - **CM3**: CoCoMax 3 by Colorware
 - **MGE**: Graphics Exchange format used by ANIMTOOL and other CoCo 3 programs
 - **CLP**: MAX-10 Word Processor by Dave Stampe
+- **MAC**: MacPaint by Apple Computer (1984)
+- **PCX**: PC Paintbrush by ZSoft Corporation (1985)
+- **GIF**: Graphics Interchange Format by CompuServe (1987)
 
 ### External Resources
 
@@ -969,8 +1306,8 @@ These graphics files were commonly stored on CoCo disk formats:
 
 ---
 
-**Document Version**: 1.01
-**Last Updated**: November 2 2025
+**Document Version**: 1.2
+**Last Updated**: November 24, 2025
 
 Made with ❤️ by Reinaldo Torres — a proud CoCo enthusiast
 📧 reyco2000@gmail.com
