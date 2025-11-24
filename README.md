@@ -1,13 +1,13 @@
 # CoCo Image Viewer
 
-A modern Python-based viewer for TRS-80 Color Computer (CoCo) graphics file formats. View and convert MAX, CM3, CLP, and MGE image files from vintage Color Computer disk images.
+A modern Python-based viewer for TRS-80 Color Computer (CoCo) graphics file formats. View and convert MAX, CM3, CLP, MGE, MAC, PCX, and GIF image files from vintage Color Computer disk images.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 
 ## Features
 
-- **Multiple Format Support**: MAX (CoCoMax 1/2), CM3 (CoCoMax 3), CLP (MAX-10 Clipboard), and MGE (Graphics Exchange)
+- **Multiple Format Support**: MAX (CoCoMax 1/2), CM3 (CoCoMax 3), CLP (MAX-10 Clipboard), MGE (Graphics Exchange), MAC (MacPaint), PCX (PC Paintbrush), and GIF
 - **Dual Interface**: GUI viewer and command-line tools
 - **DSK Image Support**: Browse and extract files from Color Computer disk images
 - **High-Quality Conversion**: Export to modern PNG format
@@ -40,6 +40,26 @@ A modern Python-based viewer for TRS-80 Color Computer (CoCo) graphics file form
 - RLE compression or raw bitmap
 - RGB/Composite monitor type support
 - 32-character title field
+
+### MAC Format (MacPaint)
+- Classic Macintosh bitmap format
+- 576×720 monochrome resolution
+- PackBits RLE compression
+- 512-byte header (or PNTG variant with 640-byte header)
+- 1 bit per pixel (black and white)
+
+### PCX Format (PC Paintbrush)
+- ZSoft PC Paintbrush format
+- Multiple color depths: 1-bit, 4-bit (EGA), 8-bit (VGA), 24-bit
+- Run-length encoding compression
+- 128-byte header with embedded EGA palette
+- Optional 256-color VGA palette at file end
+
+### GIF Format
+- Standard GIF89a/GIF87a format
+- Natively supported via PIL/Pillow library
+- Indexed color (up to 256 colors)
+- LZW compression
 
 ## Requirements
 
@@ -82,7 +102,7 @@ python3 main.py gui
 1. Click "Open DSK File" to browse for a disk image
 2. Navigate to the `DSK-sample` directory
 3. Select a DSK file (e.g., `CM3PIC01.DSK`, `CCMAX.DSK`, `CLIPART3.dsk`)
-4. Click on any MAX, CM3, CLP, or MGE file to view it
+4. Click on any MAX, CM3, CLP, MGE, MAC, PCX, or GIF file to view it
 5. Images display instantly in the viewer
 
 ![Screenshot](documentation/shared.png)
@@ -126,6 +146,21 @@ python3 main.py extract DSK-sample/CLIPART3.dsk SOCCER.CLP soccer.png
 python3 main.py extract DSK-sample/CLRMAX-1.DSK PICTURE.MGE output.png
 ```
 
+**MAC files (MacPaint):**
+```bash
+python3 main.py extract DSK-sample/MACPICS.DSK IMAGE.MAC output.png
+```
+
+**PCX files:**
+```bash
+python3 main.py extract DSK-sample/PCXPICS.DSK IMAGE.PCX output.png
+```
+
+**GIF files:**
+```bash
+python3 main.py extract DSK-sample/GIFPICS.DSK IMAGE.GIF output.png
+```
+
 ## Sample Files
 
 The repository includes sample disk images in the `DSK-sample/` directory:
@@ -160,7 +195,19 @@ python3 main.py extract DSK-sample/CLIPART3.dsk BASEBALL.CLP baseball.png
 
 ```
 CoCo-Image-Viewer/
-├── main.py                         # Main application (GUI + CLI)
+├── main.py                         # Main application (Tkinter GUI + CLI)
+├── main_new.py                     # PyQt6 GUI with zoom and export features
+│
+├── coco_image_formats/             # Reusable image format library
+│   ├── __init__.py                 # Package exports
+│   ├── dsk.py                      # DSK image handling
+│   ├── max_format.py               # MAX format converter
+│   ├── cm3_format.py               # CM3 format converter
+│   ├── mge_format.py               # MGE format converter
+│   ├── clp_format.py               # CLP format converter
+│   ├── mac_format.py               # MAC (MacPaint) format converter
+│   ├── pcx_format.py               # PCX format converter
+│   └── utils.py                    # Shared utilities
 │
 ├── README.md                       # This file
 ├── LICENSE                         # MIT License
@@ -174,7 +221,7 @@ CoCo-Image-Viewer/
 │   └── README.md                   # Link to more DSK files
 │
 └── documentation/                  # Technical documentation
-    ├── COCO-PICS-FORMATS.md        # Format specifications (630 lines)
+    ├── COCO-PICS-FORMATS.md        # Format specifications
     ├── CLP File.txt                # MAX-10 format reference
     └── shared.png                  # Screenshot
 
@@ -182,24 +229,36 @@ CoCo-Image-Viewer/
 
 ### File Descriptions
 
-#### Python Module
+#### Python Modules
 
-- **main.py** (820+ lines)
-  - Primary entry point with embedded format converters
-  - DSK parsing logic (DSKImage, DirectoryEntry classes)
+- **main.py** - Tkinter GUI + CLI
+  - Primary entry point with Tkinter-based GUI
+  - CLI with three subcommands: `gui`, `list`, `extract`
+  - Uses `coco_image_formats` library for format conversion
+
+- **main_new.py** - PyQt6 GUI (Enhanced)
+  - Modern PyQt6-based GUI with additional features
+  - Zoom slider (0.25x to 2x)
+  - Export single image to PNG with pre-filled filename
+  - Export All to PNG batch export
+  - Filter to show only supported file types
+  - DSK path display
+
+- **coco_image_formats/** - Reusable Library Package
+  - DSK parsing logic (DSKImage, DirectoryEntry, JVCHeader classes)
   - MAX-to-PPM conversion (artifact colors with YIQ color space)
-  - CM3-to-PPM conversion (decompression and palette handling)
+  - CM3-to-PPM conversion (two-stage decompression and palette handling)
   - CLP-to-PPM conversion (MAX-10 clipboard picture extraction)
   - MGE-to-PPM conversion (RLE decompression and palette conversion)
-  - Tkinter GUI application
-  - CLI with three subcommands: `gui`, `list`, `extract`
-  - Self-contained: all DSK file system logic is embedded
+  - MAC-to-PPM conversion (PackBits decompression, PNTG variant support)
+  - PCX-to-PPM conversion (1/4/8/24-bit color depths, RLE decompression)
+  - GIF support via PIL/Pillow native handling
 
 #### Documentation
 
-- **[COCO-PICS-FORMATS.md](documentation/COCO-PICS-FORMATS.md)** (980+ lines)
+- **[COCO-PICS-FORMATS.md](documentation/COCO-PICS-FORMATS.md)** (1200+ lines)
   - Comprehensive technical reference for programmers
-  - Complete format specifications: MAX, CM3, MGE, CLP
+  - Complete format specifications: MAX, CM3, MGE, CLP, MAC, PCX, GIF
   - Byte-by-byte header breakdowns
   - Code examples and algorithms
   - Common pitfalls and optimization tips
@@ -266,14 +325,13 @@ DSK Image → Extract File → Parse Format → Convert to PPM → Save as PNG
 
 ### Supported Operations
 
-| Operation | MAX | CM3 | CLP | MGE |
-|-----------|-----|-----|-----|-----|
-| View in GUI | ✅ | ✅ | ✅ | ✅ |
-| Extract to PNG | ✅ | ✅ | ✅ | ✅ |
-| Artifact colors | ✅ (BR/RB) | ❌ | ❌ | ❌ |
-| Palette support | ❌ | ✅ (16-color) | ❌ | ✅ (16-color) |
-| Compression | ❌ | ✅ (RLE) | ❌ | ✅ (RLE) |
-| Monitor conversion | ❌ | ❌ | ❌ | ✅ (RGB/CMP) |
+| Operation | MAX | CM3 | CLP | MGE | MAC | PCX | GIF |
+|-----------|-----|-----|-----|-----|-----|-----|-----|
+| View in GUI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Extract to PNG | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Artifact colors | ✅ (BR/RB) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Palette support | ❌ | ✅ (16) | ❌ | ✅ (16) | ❌ | ✅ (16/256) | ✅ (256) |
+| Compression | ❌ | ✅ (RLE) | ❌ | ✅ (RLE) | ✅ (PackBits) | ✅ (RLE) | ✅ (LZW) |
 
 ## Development
 
@@ -363,12 +421,14 @@ Contributions are welcome! Please feel free to submit issues, feature requests, 
 ### Future Enhancement Ideas
 
 - [x] Add MGE format support (ColorMax/ANIMTOOL)
+- [x] Add MAC format support (MacPaint)
+- [x] Add PCX format support (PC Paintbrush)
+- [x] Add GIF format support
+- [x] Zoom and pan controls in GUI (PyQt6 version)
+- [x] Add batch conversion mode (Export All to PNG)
 - [ ] Implement multi-image gallery view in GUI
-- [ ] Add batch conversion mode
 - [ ] Support for other CoCo formats (RAT, HRS, VEF, PIX)
 - [ ] Image preview thumbnails in file list
-- [ ] Export to multiple formats (BMP, GIF, etc.)
-- [ ] Zoom and pan controls in GUI
 - [ ] Color palette editor for CM3/MGE images
 - [ ] Drag-and-drop DSK file loading
 
@@ -410,10 +470,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Toolshed** - CoCo disk utilities
 
 ### Documentation in This Repository
-- **[COCO-PICS-FORMATS.md](documentation/COCO-PICS-FORMATS.md)** - Deep dive into MAX, CM3, MGE, and CLP formats
+- **[COCO-PICS-FORMATS.md](documentation/COCO-PICS-FORMATS.md)** - Deep dive into MAX, CM3, MGE, CLP, MAC, PCX, and GIF formats
 - **[CLP File.txt](documentation/CLP%20File.txt)** - Original MAX-10 format specification
 
 ## Version History
+
+### v1.2.0 (November 2025)
+- ✅ MAC format support (MacPaint with PackBits decompression)
+- ✅ PCX format support (1-bit, 4-bit EGA, 8-bit VGA, 24-bit true color)
+- ✅ GIF format support (native PIL/Pillow handling)
+- ✅ PyQt6 GUI version (main_new.py) with zoom controls
+- ✅ Export to PNG with pre-filled filename
+- ✅ Export All to PNG batch functionality
+- ✅ Reusable `coco_image_formats` library package
+- ✅ Updated documentation with MAC, PCX, and GIF specifications
 
 ### v1.1.0 (November 2025)
 - ✅ MGE format support (ColorMax/ANIMTOOL)
