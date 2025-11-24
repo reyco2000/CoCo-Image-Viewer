@@ -64,6 +64,7 @@ A modern Python-based viewer for TRS-80 Color Computer (CoCo) graphics file form
 ## Requirements
 
 - Python 3.7 or higher
+- PyQt6 for the GUI
 - Pillow (PIL) library for image processing
 
 ## Installation
@@ -78,7 +79,7 @@ cd CoCo-Image-Viewer
 ### 2. Install dependencies
 
 ```bash
-pip install pillow
+pip install pillow PyQt6
 ```
 
 Or create a virtual environment:
@@ -86,7 +87,7 @@ Or create a virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install pillow
+pip install pillow PyQt6
 ```
 
 ## Usage
@@ -96,14 +97,15 @@ pip install pillow
 Launch the interactive GUI viewer:
 
 ```bash
-python3 main.py gui
+python3 main_new.py
 ```
 
 1. Click "Open DSK File" to browse for a disk image
 2. Navigate to the `DSK-sample` directory
 3. Select a DSK file (e.g., `CM3PIC01.DSK`, `CCMAX.DSK`, `CLIPART3.dsk`)
 4. Click on any MAX, CM3, CLP, MGE, MAC, PCX, or GIF file to view it
-5. Images display instantly in the viewer
+5. Use the zoom slider to adjust image size (0.25x to 2x)
+6. Export images to PNG with the export buttons
 
 ![Screenshot](documentation/shared.png)
 
@@ -112,7 +114,7 @@ python3 main.py gui
 #### List files in a DSK image
 
 ```bash
-python3 main.py list DSK-sample/CLIPART3.dsk
+python3 main_new.py list DSK-sample/CLIPART3.dsk
 ```
 
 Output:
@@ -128,37 +130,37 @@ SURFER.CLP
 
 **MAX files:**
 ```bash
-python3 main.py extract DSK-sample/CCMAX.DSK TITLE.MAX output.png
+python3 main_new.py extract DSK-sample/CCMAX.DSK TITLE.MAX output.png
 ```
 
 **CM3 files:**
 ```bash
-python3 main.py extract DSK-sample/CM3PIC01.DSK Jinx.CM3 output.png
+python3 main_new.py extract DSK-sample/CM3PIC01.DSK Jinx.CM3 output.png
 ```
 
 **CLP files:**
 ```bash
-python3 main.py extract DSK-sample/CLIPART3.dsk SOCCER.CLP soccer.png
+python3 main_new.py extract DSK-sample/CLIPART3.dsk SOCCER.CLP soccer.png
 ```
 
 **MGE files:**
 ```bash
-python3 main.py extract DSK-sample/CLRMAX-1.DSK PICTURE.MGE output.png
+python3 main_new.py extract DSK-sample/CLRMAX-1.DSK PICTURE.MGE output.png
 ```
 
 **MAC files (MacPaint):**
 ```bash
-python3 main.py extract DSK-sample/MACPICS.DSK IMAGE.MAC output.png
+python3 main_new.py extract DSK-sample/MACPICS.DSK IMAGE.MAC output.png
 ```
 
 **PCX files:**
 ```bash
-python3 main.py extract DSK-sample/PCXPICS.DSK IMAGE.PCX output.png
+python3 main_new.py extract DSK-sample/PCXPICS.DSK IMAGE.PCX output.png
 ```
 
 **GIF files:**
 ```bash
-python3 main.py extract DSK-sample/GIFPICS.DSK IMAGE.GIF output.png
+python3 main_new.py extract DSK-sample/GIFPICS.DSK IMAGE.GIF output.png
 ```
 
 ## Sample Files
@@ -178,25 +180,24 @@ For additional DSK files, visit: https://colorcomputerarchive.com/repo/Disks/Pic
 
 ```bash
 # Browse CCMAX.DSK
-python3 main.py list DSK-sample/CCMAX.DSK
+python3 main_new.py list DSK-sample/CCMAX.DSK
 
 # Extract from CM3PIC01.DSK (384-row image)
-python3 main.py extract DSK-sample/CM3PIC01.DSK Jinx.CM3 jinx.png
+python3 main_new.py extract DSK-sample/CM3PIC01.DSK Jinx.CM3 jinx.png
 
 # Extract from CM3PIC01.DSK (192-row image)
-python3 main.py extract DSK-sample/CM3PIC01.DSK Snail.CM3 snail.png
+python3 main_new.py extract DSK-sample/CM3PIC01.DSK Snail.CM3 snail.png
 
 # Extract sports clipart
-python3 main.py extract DSK-sample/CLIPART3.dsk SOCCER.CLP soccer.png
-python3 main.py extract DSK-sample/CLIPART3.dsk BASEBALL.CLP baseball.png
+python3 main_new.py extract DSK-sample/CLIPART3.dsk SOCCER.CLP soccer.png
+python3 main_new.py extract DSK-sample/CLIPART3.dsk BASEBALL.CLP baseball.png
 ```
 
 ## Project Structure
 
 ```
 CoCo-Image-Viewer/
-├── main.py                         # Main application (Tkinter GUI + CLI)
-├── main_new.py                     # PyQt6 GUI with zoom and export features
+├── main_new.py                     # Main application (PyQt6 GUI + CLI)
 │
 ├── coco_image_formats/             # Reusable image format library
 │   ├── __init__.py                 # Package exports
@@ -231,18 +232,15 @@ CoCo-Image-Viewer/
 
 #### Python Modules
 
-- **main.py** - Tkinter GUI + CLI
-  - Primary entry point with Tkinter-based GUI
+- **main_new.py** - Main Application (PyQt6 GUI + CLI)
+  - Modern PyQt6-based GUI viewer
   - CLI with three subcommands: `gui`, `list`, `extract`
-  - Uses `coco_image_formats` library for format conversion
-
-- **main_new.py** - PyQt6 GUI (Enhanced)
-  - Modern PyQt6-based GUI with additional features
   - Zoom slider (0.25x to 2x)
   - Export single image to PNG with pre-filled filename
   - Export All to PNG batch export
   - Filter to show only supported file types
   - DSK path display
+  - Uses `coco_image_formats` library for format conversion
 
 - **coco_image_formats/** - Reusable Library Package
   - DSK parsing logic (DSKImage, DirectoryEntry, JVCHeader classes)
@@ -283,11 +281,10 @@ All disk images are 158KB DSK/JVC format (DECB file system):
 
 ### Module Design
 
-`main.py` is intentionally self-contained with all functionality embedded:
-- **No external dependencies** except Pillow (PIL)
-- **Embedded DSK parser**: Complete DECB file system implementation
-- **Embedded format converters**: MAX, CM3, CLP, and MGE conversion logic
-- **Single-file distribution**: Easy to deploy and understand
+The project uses a modular architecture:
+- **main_new.py**: PyQt6 GUI application with CLI support
+- **coco_image_formats/**: Reusable library for all format conversions
+- **Dependencies**: PyQt6 for GUI, Pillow for image processing
 
 ### DSK File System (DECB)
 
@@ -339,33 +336,35 @@ DSK Image → Extract File → Parse Format → Convert to PPM → Save as PNG
 
 ```bash
 # Test MAX format
-python3 main.py list DSK-sample/CCMAX.DSK
-python3 main.py extract DSK-sample/CCMAX.DSK <filename>.MAX test.png
+python3 main_new.py list DSK-sample/CCMAX.DSK
+python3 main_new.py extract DSK-sample/CCMAX.DSK <filename>.MAX test.png
 
 # Test CM3 format (192 rows)
-python3 main.py extract DSK-sample/CM3PIC01.DSK Snail.CM3 test.png
+python3 main_new.py extract DSK-sample/CM3PIC01.DSK Snail.CM3 test.png
 
 # Test CM3 format (384 rows)
-python3 main.py extract DSK-sample/CM3PIC01.DSK Jinx.CM3 test.png
+python3 main_new.py extract DSK-sample/CM3PIC01.DSK Jinx.CM3 test.png
 
 # Test CLP format (sports clipart)
-python3 main.py extract DSK-sample/CLIPART3.dsk SOCCER.CLP test.png
-python3 main.py extract DSK-sample/CLIPART3.dsk CATCHER.CLP test.png
+python3 main_new.py extract DSK-sample/CLIPART3.dsk SOCCER.CLP test.png
+python3 main_new.py extract DSK-sample/CLIPART3.dsk CATCHER.CLP test.png
 
 # Test MGE format
-python3 main.py list DSK-sample/CLRMAX-1.DSK
-python3 main.py extract DSK-sample/CLRMAX-1.DSK <filename>.MGE test.png
+python3 main_new.py list DSK-sample/CLRMAX-1.DSK
+python3 main_new.py extract DSK-sample/CLRMAX-1.DSK <filename>.MGE test.png
 ```
 
 ### Adding New Formats
 
 To add support for additional Color Computer graphics formats:
 
-1. Implement a `convert_XXX_to_ppm()` function in `main.py`
-2. Add format detection in GUI (`on_file_select()` method)
-3. Add format support in CLI (`extract` command)
-4. Update help text and documentation
-5. Add test cases with sample files
+1. Create a new `xxx_format.py` module in `coco_image_formats/`
+2. Implement a `convert_xxx_to_ppm()` function
+3. Export the function in `coco_image_formats/__init__.py`
+4. Add format detection in `main_new.py` (`on_file_select()` method)
+5. Add format support in CLI (`extract` command in `main_new.py`)
+6. Update help text and documentation
+7. Add test cases with sample files
 
 ## Known Limitations
 
@@ -383,6 +382,11 @@ To add support for additional Color Computer graphics formats:
 pip install pillow
 ```
 
+### "No module named 'PyQt6'"
+```bash
+pip install PyQt6
+```
+
 ### "Error displaying image"
 - Ensure the file is a valid MAX/CM3/CLP format
 - Check that the DSK image is not corrupted
@@ -394,9 +398,9 @@ pip install pillow
 - Only files with picture paragraphs (tag 0x01) will display
 
 ### GUI not launching
-- Ensure tkinter is installed: `sudo apt install python3-tk` (Linux)
-- On macOS, tkinter comes with Python
-- On Windows, tkinter is included with Python installation
+- Ensure PyQt6 is installed: `pip install PyQt6`
+- On Linux, you may need: `sudo apt install python3-pyqt6` or install via pip
+- Check for any error messages in the terminal
 
 ## Contributing
 
