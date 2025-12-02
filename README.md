@@ -1,15 +1,15 @@
 # CoCo Image Viewer
 
-A modern Python-based viewer for TRS-80 Color Computer (CoCo) graphics file formats. View and convert MAX, CM3, CLP, MGE, MAC, PCX, and GIF image files from vintage Color Computer disk images.
+A modern Python-based viewer for TRS-80 Color Computer (CoCo) and Atari ST graphics file formats. View and convert MAX, CM3, CLP, MGE, MAC, PCX, GIF, and TNY image files from vintage computer disk images.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 
 ## Features
 
-- **Multiple Format Support**: MAX (CoCoMax 1/2), CM3 (CoCoMax 3), CLP (MAX-10 Clipboard), MGE (Graphics Exchange), MAC (MacPaint), PCX (PC Paintbrush), and GIF
+- **Multiple Format Support**: MAX (CoCoMax 1/2), CM3 (CoCoMax 3), CLP (MAX-10 Clipboard), MGE (Graphics Exchange), MAC (MacPaint), PCX (PC Paintbrush), GIF, and TNY (Atari ST Tiny)
 - **Dual Interface**: GUI viewer and command-line tools
-- **DSK Image Support**: Browse and extract files from Color Computer disk images
+- **DSK Image Support**: Browse and extract files from Color Computer and Atari ST disk images
 - **High-Quality Conversion**: Export to modern PNG format
 - **NTSC Artifact Colors**: Supports MAX artifact color modes (BR/RB)
 - **Comprehensive Documentation**: Technical format specifications for developers
@@ -61,6 +61,17 @@ A modern Python-based viewer for TRS-80 Color Computer (CoCo) graphics file form
 - Indexed color (up to 256 colors)
 - LZW compression
 
+### TNY Format (Atari ST Tiny)
+- Compressed image format for Atari ST computers
+- Three resolutions supported:
+  - Low: 320×200, 16 colors (4 bitplanes)
+  - Medium: 640×200, 4 colors (2 bitplanes)
+  - High: 640×400, monochrome (1 bitplane)
+- Custom RLE compression optimized for vertical columns
+- Interleaved bitplane format
+- 9-bit color palette (3 bits per RGB channel)
+- File extensions: .TNY, .TN1, .TN2, .TN3
+
 ## Requirements
 
 - Python 3.7 or higher
@@ -103,7 +114,7 @@ python3 main_new.py
 1. Click "Open DSK File" to browse for a disk image
 2. Navigate to the `DSK-sample` directory
 3. Select a DSK file (e.g., `CM3PIC01.DSK`, `CCMAX.DSK`, `CLIPART3.dsk`)
-4. Click on any MAX, CM3, CLP, MGE, MAC, PCX, or GIF file to view it
+4. Click on any MAX, CM3, CLP, MGE, MAC, PCX, GIF, or TNY file to view it
 5. Use the zoom slider to adjust image size (0.25x to 2x)
 6. Export images to PNG with the export buttons
 
@@ -163,6 +174,12 @@ python3 main_new.py extract DSK-sample/PCXPICS.DSK IMAGE.PCX output.png
 python3 main_new.py extract DSK-sample/GIFPICS.DSK IMAGE.GIF output.png
 ```
 
+**TNY files (Atari ST Tiny):**
+```bash
+python3 main_new.py extract DSK-sample/ATARIST.DSK IMAGE.TNY output.png
+python3 main_new.py extract DSK-sample/ATARIST.DSK IMAGE.TN1 output.png
+```
+
 ## Sample Files
 
 The repository includes sample disk images in the `DSK-sample/` directory:
@@ -208,6 +225,7 @@ CoCo-Image-Viewer/
 │   ├── clp_format.py               # CLP format converter
 │   ├── mac_format.py               # MAC (MacPaint) format converter
 │   ├── pcx_format.py               # PCX format converter
+│   ├── tny_format.py               # TNY (Atari ST Tiny) format converter
 │   └── utils.py                    # Shared utilities
 │
 ├── README.md                       # This file
@@ -222,8 +240,9 @@ CoCo-Image-Viewer/
 │   └── README.md                   # Link to more DSK files
 │
 └── documentation/                  # Technical documentation
-    ├── COCO-PICS-FORMATS.md        # Format specifications
+    ├── COCO-PICS-FORMATS.md        # CoCo format specifications
     ├── CLP File.txt                # MAX-10 format reference
+    ├── TNY_IMPLEMENTATION.md       # Atari ST Tiny format documentation
     └── shared.png                  # Screenshot
 
 ```
@@ -250,6 +269,7 @@ CoCo-Image-Viewer/
   - MGE-to-PPM conversion (RLE decompression and palette conversion)
   - MAC-to-PPM conversion (PackBits decompression, PNTG variant support)
   - PCX-to-PPM conversion (1/4/8/24-bit color depths, RLE decompression)
+  - TNY-to-PPM conversion (Atari ST Tiny format with bitplane decoding)
   - GIF support via PIL/Pillow native handling
 
 #### Documentation
@@ -261,6 +281,14 @@ CoCo-Image-Viewer/
   - Code examples and algorithms
   - Common pitfalls and optimization tips
   - Color encoding details and compression algorithms
+
+- **[TNY_IMPLEMENTATION.md](documentation/TNY_IMPLEMENTATION.md)**
+  - Atari ST Tiny format implementation guide
+  - Complete specification and decoder details
+  - Bitplane format explanation
+  - RLE decompression algorithm
+  - Column reordering and color palette conversion
+  - Integration notes and testing results
 
 - **[CLP File.txt](documentation/CLP%20File.txt)**
   - Original MAX-10 technical reference by Dave Stampe
@@ -322,13 +350,13 @@ DSK Image → Extract File → Parse Format → Convert to PPM → Save as PNG
 
 ### Supported Operations
 
-| Operation | MAX | CM3 | CLP | MGE | MAC | PCX | GIF |
-|-----------|-----|-----|-----|-----|-----|-----|-----|
-| View in GUI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Extract to PNG | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Artifact colors | ✅ (BR/RB) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Palette support | ❌ | ✅ (16) | ❌ | ✅ (16) | ❌ | ✅ (16/256) | ✅ (256) |
-| Compression | ❌ | ✅ (RLE) | ❌ | ✅ (RLE) | ✅ (PackBits) | ✅ (RLE) | ✅ (LZW) |
+| Operation | MAX | CM3 | CLP | MGE | MAC | PCX | GIF | TNY |
+|-----------|-----|-----|-----|-----|-----|-----|-----|-----|
+| View in GUI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Extract to PNG | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Artifact colors | ✅ (BR/RB) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Palette support | ❌ | ✅ (16) | ❌ | ✅ (16) | ❌ | ✅ (16/256) | ✅ (256) | ✅ (16) |
+| Compression | ❌ | ✅ (RLE) | ❌ | ✅ (RLE) | ✅ (PackBits) | ✅ (RLE) | ✅ (LZW) | ✅ (RLE) |
 
 ## Development
 
@@ -475,9 +503,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Documentation in This Repository
 - **[COCO-PICS-FORMATS.md](documentation/COCO-PICS-FORMATS.md)** - Deep dive into MAX, CM3, MGE, CLP, MAC, PCX, and GIF formats
+- **[TNY_IMPLEMENTATION.md](documentation/TNY_IMPLEMENTATION.md)** - Atari ST Tiny format specification and implementation
 - **[CLP File.txt](documentation/CLP%20File.txt)** - Original MAX-10 format specification
 
 ## Version History
+
+### v1.3.0 (December 2025)
+- ✅ TNY format support (Atari ST Tiny with interleaved bitplane decoding)
+- ✅ Support for all three Atari ST resolutions (320×200, 640×200, 640×400)
+- ✅ Custom RLE decompression with column reordering
+- ✅ 9-bit color palette support (3 bits per channel)
+- ✅ File extensions: .TNY, .TN1, .TN2, .TN3
+- ✅ Comprehensive TNY documentation (TNY_IMPLEMENTATION.md)
+- ✅ Test suite for TNY decoder validation
 
 ### v1.2.0 (November 2025)
 - ✅ MAC format support (MacPaint with PackBits decompression)
