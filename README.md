@@ -1,6 +1,6 @@
 # CoCo Image Viewer
 
-A modern Python-based viewer for TRS-80 Color Computer (CoCo) and Atari ST graphics file formats. View and convert MAX, CM3, CLP, MGE, MAC, PCX, GIF, and TNY image files from vintage computer disk images.
+A modern Python-based viewer for TRS-80 Color Computer (CoCo) and Atari ST graphics file formats. View and convert MAX, CM3, CLP, MGE, MAC, PCX, GIF, TNY, NIB image files from vintage computer disk images.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
@@ -71,6 +71,15 @@ A modern Python-based viewer for TRS-80 Color Computer (CoCo) and Atari ST graph
 - Interleaved bitplane format
 - 9-bit color palette (3 bits per RGB channel)
 - File extensions: .TNY, .TN1, .TN2, .TN3
+
+### NIB Format (Unknown author)
+- Compressed image format for the TRS-80 Color Computer by Steve
+- Native resolution: 640×200, 4 colors (2bpp)
+- Sophisticated two-level RLE compression scheme (byte-level and nibble-level)
+- Encapsulated within a standard DECB BIN container file
+- 34-byte embedded header containing pointers, XOR flags, and palette data
+- Includes a 16-color GIME palette (though typically overridden by 4-color loader palettes)
+- Optional XOR delta decoding for improved vertical line compression
 
 ## Requirements
 
@@ -549,3 +558,4 @@ Made with ❤️ by Reinaldo Torres — a proud CoCo enthusiast 📧 reyco2000@g
 🟢 Proud member and co-creator of the CoCoByte Club https://cocobyte.co/
 
 🔗 See more on @ChipShift https://github.com/reyco2000/
+
