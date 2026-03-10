@@ -25,10 +25,11 @@ from coco_image_formats import (
     convert_pcx_to_ppm,
     convert_clp_to_ppm,
     convert_tny_to_ppm,
+    convert_nib_to_ppm,
 )
 
 # Supported image extensions
-SUPPORTED_EXTENSIONS = {'MAX', 'CM3', 'CLP', 'MGE', 'MAC', 'PCX', 'GIF', 'TNY', 'TN1', 'TN2', 'TN3'}
+SUPPORTED_EXTENSIONS = {'MAX', 'CM3', 'CLP', 'MGE', 'MAC', 'PCX', 'GIF', 'TNY', 'TN1', 'TN2', 'TN3', 'NIB'}
 
 
 def pil_to_qpixmap(pil_image):
@@ -66,7 +67,7 @@ class ImageViewer(QMainWindow):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("CoCo Image Viewer (MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY)")
+        self.setWindowTitle("CoCo Image Viewer (MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB)")
         self.setGeometry(100, 100, 1000, 800)
 
         # Create central widget
@@ -398,6 +399,11 @@ class ImageViewer(QMainWindow):
                     if ppm_data:
                         pil_image = Image.open(BytesIO(ppm_data))
 
+                elif ext == "NIB":
+                    ppm_data, width, height = convert_nib_to_ppm(data)
+                    if ppm_data:
+                        pil_image = Image.open(BytesIO(ppm_data))
+
                 # Save the image
                 if pil_image:
                     # Format: FILENAME_EXTType.png
@@ -512,6 +518,16 @@ class ImageViewer(QMainWindow):
                     else:
                         self.status_bar.showMessage("Failed to convert TNY file")
 
+            elif extension == "NIB":
+                data = self.dsk.extract_file(selected_entry)
+                if data:
+                    ppm_data, width, height = convert_nib_to_ppm(data)
+                    if ppm_data:
+                        img = Image.open(BytesIO(ppm_data))
+                        self.display_image(img)
+                    else:
+                        self.status_bar.showMessage("Failed to convert NIB file")
+
             else:
                 self.status_bar.showMessage(f"Unsupported format: {extension}")
 
@@ -531,7 +547,7 @@ def run_gui():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CoCo Image Viewer - MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY DSK Tool (PyQt6)")
+    parser = argparse.ArgumentParser(description="CoCo Image Viewer - MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB DSK Tool (PyQt6)")
     subparsers = parser.add_subparsers(dest="command")
 
     gui_parser = subparsers.add_parser("gui", help="Launch the GUI application")
@@ -606,6 +622,10 @@ def main():
                         ppm_data, width, height = convert_tny_to_ppm(image_data)
                         if not ppm_data:
                             print("Failed to convert TNY file")
+                    elif extension == "NIB":
+                        ppm_data, width, height = convert_nib_to_ppm(image_data)
+                        if not ppm_data:
+                            print("Failed to convert NIB file")
                     else:
                         print(f"Unsupported file format: {extension}")
                         ppm_data = None
