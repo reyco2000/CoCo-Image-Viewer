@@ -26,10 +26,12 @@ from coco_image_formats import (
     convert_clp_to_ppm,
     convert_tny_to_ppm,
     convert_nib_to_ppm,
+    convert_img_to_ppm,
+    convert_hr_to_ppm,
 )
 
 # Supported image extensions
-SUPPORTED_EXTENSIONS = {'MAX', 'CM3', 'CLP', 'MGE', 'MAC', 'PCX', 'GIF', 'TNY', 'TN1', 'TN2', 'TN3', 'NIB'}
+SUPPORTED_EXTENSIONS = {'MAX', 'CM3', 'CLP', 'MGE', 'MAC', 'PCX', 'GIF', 'TNY', 'TN1', 'TN2', 'TN3', 'NIB', 'IMG'}
 
 
 def pil_to_qpixmap(pil_image):
@@ -67,7 +69,7 @@ class ImageViewer(QMainWindow):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("CoCo Image Viewer (MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB)")
+        self.setWindowTitle("CoCo Image Viewer (MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB/IMG/HR*)")
         self.setGeometry(100, 100, 1000, 800)
 
         # Create central widget
@@ -144,6 +146,12 @@ class ImageViewer(QMainWindow):
         zoom_layout.addWidget(self.zoom_value_label)
 
         zoom_layout.addStretch()
+
+        # Checkbox for Aspect Ratio Correction
+        self.aspect_ratio_checkbox = QCheckBox("4:3 TV Aspect Ratio")
+        self.aspect_ratio_checkbox.setChecked(False)
+        self.aspect_ratio_checkbox.stateChanged.connect(self.update_displayed_image)
+        zoom_layout.addWidget(self.aspect_ratio_checkbox)
 
         # Export button
         self.btn_export = QPushButton("Export as PNG")
@@ -225,7 +233,7 @@ class ImageViewer(QMainWindow):
         for filename, entry in self.all_files:
             ext = entry.extension.upper() if entry.extension else ""
 
-            if filter_enabled and ext not in SUPPORTED_EXTENSIONS:
+            if filter_enabled and ext not in SUPPORTED_EXTENSIONS and not ext.startswith("HR"):
                 continue
 
             item = QListWidgetItem(filename)
@@ -258,13 +266,22 @@ class ImageViewer(QMainWindow):
         # Get original size
         orig_width, orig_height = self.current_pil_image.size
 
+        # Apply aspect ratio correction if requested
+        if self.aspect_ratio_checkbox.isChecked():
+            # Standard NTSC TVs operate at a 4:3 visual physical dimension ratio
+            base_width = orig_width
+            base_height = int(orig_width * 0.75)
+        else:
+            base_width = orig_width
+            base_height = orig_height
+
         # Calculate new size
-        new_width = int(orig_width * self.current_scale)
-        new_height = int(orig_height * self.current_scale)
+        new_width = int(base_width * self.current_scale)
+        new_height = int(base_height * self.current_scale)
 
         # Resize image
-        if self.current_scale != 1.0:
-            resample = Image.Resampling.NEAREST if self.current_scale > 1.0 else Image.Resampling.LANCZOS
+        if new_width != orig_width or new_height != orig_height:
+            resample = Image.Resampling.NEAREST if self.current_scale >= 1.0 else Image.Resampling.LANCZOS
             scaled_image = self.current_pil_image.resize((new_width, new_height), resample)
         else:
             scaled_image = self.current_pil_image
@@ -347,7 +364,7 @@ class ImageViewer(QMainWindow):
             ext = entry.extension.upper() if entry.extension else ""
 
             # Only process supported extensions
-            if ext not in SUPPORTED_EXTENSIONS:
+            if ext not in SUPPORTED_EXTENSIONS and not ext.startswith("HR"):
                 continue
 
             try:
@@ -403,6 +420,30 @@ class ImageViewer(QMainWindow):
                     ppm_data, width, height = convert_nib_to_ppm(data)
                     if ppm_data:
                         pil_image = Image.open(BytesIO(ppm_data))
+
+                elif ext == "IMG":
+                    ppm_data, width, height = convert_img_to_ppm(data)
+                    if ppm_data:
+                        pil_image = Image.open(BytesIO(ppm_data))
+
+                elif ext.startswith("HR"):
+                    if ext == "HR0":
+                        combined_data = bytearray()
+                        base_name = entry.filename
+                        for i in range(4):
+                            hr_ext = f"HR{i}"
+                            part_entry = next((e for fn, e in self.all_files if e.filename == base_name and (e.extension.upper() if e.extension else "") == hr_ext), None)
+                            if part_entry:
+                                part_data = self.dsk.extract_file(part_entry)
+                                if part_data:
+                                    combined_data.extend(part_data)
+                        if combined_data:
+                            ppm_data, width, height = convert_hr_to_ppm(bytes(combined_data))
+                            if ppm_data:
+                                pil_image = Image.open(BytesIO(ppm_data))
+                                ext = "HR" # Save it uniformly as filename_HR.png
+                    else:
+                        continue # Skip other sequence parts so we don't duplicate exports
 
                 # Save the image
                 if pil_image:
@@ -528,6 +569,37 @@ class ImageViewer(QMainWindow):
                     else:
                         self.status_bar.showMessage("Failed to convert NIB file")
 
+            elif extension == "IMG":
+                data = self.dsk.extract_file(selected_entry)
+                if data:
+                    ppm_data, width, height = convert_img_to_ppm(data)
+                    if ppm_data:
+                        img = Image.open(BytesIO(ppm_data))
+                        self.display_image(img)
+                    else:
+                        self.status_bar.showMessage("Failed to convert IMG file")
+
+            elif extension.startswith("HR"):
+                base_name = selected_entry.filename
+                combined_data = bytearray()
+                for i in range(4):
+                    hr_ext = f"HR{i}"
+                    part_entry = next((e for fn, e in self.all_files if e.filename == base_name and (e.extension.upper() if e.extension else "") == hr_ext), None)
+                    if part_entry:
+                        part_data = self.dsk.extract_file(part_entry)
+                        if part_data:
+                            combined_data.extend(part_data)
+                
+                if combined_data:
+                    ppm_data, width, height = convert_hr_to_ppm(bytes(combined_data))
+                    if ppm_data:
+                        img = Image.open(BytesIO(ppm_data))
+                        self.display_image(img)
+                    else:
+                        self.status_bar.showMessage("Failed to convert HR sequence")
+                else:
+                    self.status_bar.showMessage("Failed to extract HR data sequence")
+
             else:
                 self.status_bar.showMessage(f"Unsupported format: {extension}")
 
@@ -547,7 +619,7 @@ def run_gui():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CoCo Image Viewer - MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB DSK Tool (PyQt6)")
+    parser = argparse.ArgumentParser(description="CoCo Image Viewer - MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB/IMG/HR* DSK Tool (PyQt6)")
     subparsers = parser.add_subparsers(dest="command")
 
     gui_parser = subparsers.add_parser("gui", help="Launch the GUI application")
@@ -626,6 +698,26 @@ def main():
                         ppm_data, width, height = convert_nib_to_ppm(image_data)
                         if not ppm_data:
                             print("Failed to convert NIB file")
+                    elif extension == "IMG":
+                        ppm_data, width, height = convert_img_to_ppm(image_data)
+                        if not ppm_data:
+                            print("Failed to convert IMG file")
+                    elif extension.startswith("HR"):
+                        base_name = entry_to_extract.filename
+                        combined_data = bytearray()
+                        for i in range(4):
+                            hr_ext = f"HR{i}"
+                            part_entry = next((e for e in dsk.directory if e.filename == base_name and (e.extension.upper() if e.extension else "") == hr_ext), None)
+                            if part_entry:
+                                part_data = dsk.extract_file(part_entry)
+                                if part_data:
+                                    combined_data.extend(part_data)
+                        if combined_data:
+                            ppm_data, width, height = convert_hr_to_ppm(bytes(combined_data))
+                            if not ppm_data:
+                                print("Failed to convert HR sequence")
+                        else:
+                            ppm_data = None
                     else:
                         print(f"Unsupported file format: {extension}")
                         ppm_data = None
