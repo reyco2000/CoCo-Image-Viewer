@@ -542,6 +542,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Version History
 
+### v1.5.0 (April 2026)
+- ✅ IMG format support (Digiscan RASCAN multi-mode digitizer)
+- ✅ Five video modes: 4-color 640×200, 16-color 320×200, dithered gray 640×200, 4096-color FlikPic, 3D anaglyph
+- ✅ Custom RLE decompression with alternating block structure
+- ✅ HR format support (RASCAN CoCo 3 Video RAM Sequence)
+- ✅ Multi-file HR0–HR3 auto-concatenation for 640×200 grayscale images
+- ✅ SAVEM container extraction for HR files
+
+### v1.4.0 (March 2026)
+- ✅ NIB format support (Nibble compressed format for TRS-80 CoCo)
+- ✅ Two-level RLE compression (byte-level and nibble-level)
+- ✅ DECB BIN container parsing with embedded header
+- ✅ 640×200 4-color native resolution
+- ✅ Optional XOR delta decoding for vertical line compression
+
 ### v1.3.0 (December 2025)
 - ✅ TNY format support (Atari ST Tiny with interleaved bitplane decoding)
 - ✅ Support for all three Atari ST resolutions (320×200, 640×200, 640×400)
