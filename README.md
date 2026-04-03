@@ -1,13 +1,13 @@
 # CoCo Image Viewer
 
-A modern Python-based viewer for TRS-80 Color Computer (CoCo) and Atari ST graphics file formats. View and convert MAX, CM3, CLP, MGE, MAC, PCX, GIF, TNY, NIB image files from vintage computer disk images.
+A modern Python-based viewer for TRS-80 Color Computer (CoCo) and Atari ST graphics file formats. View and convert MAX, CM3, CLP, MGE, MAC, PCX, GIF, TNY, NIB, IMG, and HR image files from vintage computer disk images.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
 
 ## Features
 
-- **Multiple Format Support**: MAX (CoCoMax 1/2), CM3 (CoCoMax 3), CLP (MAX-10 Clipboard), MGE (Graphics Exchange), MAC (MacPaint), PCX (PC Paintbrush), GIF, and TNY (Atari ST Tiny)
+- **Multiple Format Support**: MAX (CoCoMax 1/2), CM3 (CoCoMax 3), CLP (MAX-10 Clipboard), MGE (Graphics Exchange), MAC (MacPaint), PCX (PC Paintbrush), GIF, TNY (Atari ST Tiny), IMG (Digiscan RASCAN), and HR (RASCAN CoCo 3)
 - **Dual Interface**: GUI viewer and command-line tools
 - **DSK Image Support**: Browse and extract files from Color Computer and Atari ST disk images
 - **High-Quality Conversion**: Export to modern PNG format
@@ -81,6 +81,26 @@ A modern Python-based viewer for TRS-80 Color Computer (CoCo) and Atari ST graph
 - Includes a 16-color GIME palette (though typically overridden by 4-color loader palettes)
 - Optional XOR delta decoding for improved vertical line compression
 
+### IMG Format (Digiscan RASCAN)
+- Digitized image format for the TRS-80 Color Computer 3
+- 18-byte header: 1 dummy byte, 1 video mode byte, 16 palette values
+- Five video modes supported:
+  - Mode 0: 640×200, 4-color grayscale (2 bits per pixel)
+  - Mode 1: 320×200, 16 colors (4 bits per pixel)
+  - Mode 2: 640×200, 16 dithered grayscale (4 bits per pixel)
+  - Mode 3: 320×200, 4096 "FlikPic" colors (3 separate RGB buffers)
+  - Mode 4: 320×200, 3D anaglyph (2 buffers: red + cyan for 3D glasses)
+- Custom RLE compression with alternating uncompressed/compressed blocks
+- CoCo 3 hardware palette (6-bit RGB encoding)
+
+### HR Format (RASCAN CoCo 3 Video RAM Sequence)
+- Multi-file grayscale image format for the TRS-80 Color Computer 3
+- 640×200 resolution, 4-shade grayscale (2 bits per pixel)
+- Split across 4 sequential files: HR0, HR1, HR2, HR3
+- Wrapped in SAVEM (DECB BIN) container format
+- Inverted grayscale palette (0=white, 3=black)
+- 32,000 bytes of pixel data total (8,000 bytes per file)
+
 ## Requirements
 
 - Python 3.7 or higher
@@ -123,7 +143,7 @@ python3 main_new.py
 1. Click "Open DSK File" to browse for a disk image
 2. Navigate to the `DSK-sample` directory
 3. Select a DSK file (e.g., `CM3PIC01.DSK`, `CCMAX.DSK`, `CLIPART3.dsk`)
-4. Click on any MAX, CM3, CLP, MGE, MAC, PCX, GIF, or TNY file to view it
+4. Click on any MAX, CM3, CLP, MGE, MAC, PCX, GIF, TNY, NIB, IMG, or HR file to view it
 5. Use the zoom slider to adjust image size (0.25x to 2x)
 6. Export images to PNG with the export buttons
 
@@ -235,6 +255,8 @@ CoCo-Image-Viewer/
 │   ├── mac_format.py               # MAC (MacPaint) format converter
 │   ├── pcx_format.py               # PCX format converter
 │   ├── tny_format.py               # TNY (Atari ST Tiny) format converter
+│   ├── img_format.py               # IMG (Digiscan RASCAN) format converter
+│   ├── hr_format.py                # HR (RASCAN CoCo 3) format converter
 │   └── utils.py                    # Shared utilities
 │
 ├── README.md                       # This file
@@ -279,6 +301,8 @@ CoCo-Image-Viewer/
   - MAC-to-PPM conversion (PackBits decompression, PNTG variant support)
   - PCX-to-PPM conversion (1/4/8/24-bit color depths, RLE decompression)
   - TNY-to-PPM conversion (Atari ST Tiny format with bitplane decoding)
+  - IMG-to-PPM conversion (Digiscan RASCAN multi-mode digitizer format)
+  - HR-to-PPM conversion (RASCAN CoCo 3 multi-file grayscale)
   - GIF support via PIL/Pillow native handling
 
 #### Documentation
@@ -354,18 +378,19 @@ The project uses a modular architecture:
 ```
 DSK Image → Extract File → Parse Format → Convert to PPM → Save as PNG
      ↓            ↓              ↓               ↓              ↓
-  JVC/DECB    granules   MAX/CM3/CLP/MGE   RGB pixels    Pillow library
+  JVC/DECB    granules   MAX/CM3/CLP/MGE/  RGB pixels    Pillow library
+                         IMG/HR/etc.
 ```
 
 ### Supported Operations
 
-| Operation | MAX | CM3 | CLP | MGE | MAC | PCX | GIF | TNY |
-|-----------|-----|-----|-----|-----|-----|-----|-----|-----|
-| View in GUI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Extract to PNG | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Artifact colors | ✅ (BR/RB) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Palette support | ❌ | ✅ (16) | ❌ | ✅ (16) | ❌ | ✅ (16/256) | ✅ (256) | ✅ (16) |
-| Compression | ❌ | ✅ (RLE) | ❌ | ✅ (RLE) | ✅ (PackBits) | ✅ (RLE) | ✅ (LZW) | ✅ (RLE) |
+| Operation | MAX | CM3 | CLP | MGE | MAC | PCX | GIF | TNY | NIB | IMG | HR |
+|-----------|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+| View in GUI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Extract to PNG | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Artifact colors | ✅ (BR/RB) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Palette support | ❌ | ✅ (16) | ❌ | ✅ (16) | ❌ | ✅ (16/256) | ✅ (256) | ✅ (16) | ✅ (16) | ✅ (16) | ❌ |
+| Compression | ❌ | ✅ (RLE) | ❌ | ✅ (RLE) | ✅ (PackBits) | ✅ (RLE) | ✅ (LZW) | ✅ (RLE) | ✅ (RLE) | ✅ (RLE) | ❌ |
 
 ## Development
 
