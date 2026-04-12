@@ -24,7 +24,6 @@ Thumbs.db
 nul
 
 # uv
-uv.lock
 .cache/
 
 # Node (version bumper)
