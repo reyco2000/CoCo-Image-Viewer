@@ -3,6 +3,7 @@ MAC (MacPaint) image format converter.
 """
 
 from io import BytesIO
+
 from .utils import pack
 
 
@@ -30,7 +31,7 @@ def mac_unpack_bits(data: bytes, expected_bytes: int) -> bytes:
             # Literal run: copy n+1 bytes
             count = n + 1
             if i + count <= data_len:
-                result.extend(data[i:i + count])
+                result.extend(data[i : i + count])
                 i += count
             else:
                 # Not enough data, take what we can
@@ -78,14 +79,14 @@ def convert_mac_to_ppm(input_image_stream):
         offset = 0
 
         # Check for PNTG variant (Mac resource fork format)
-        if b'PNTG' in file_data[:128]:
+        if b"PNTG" in file_data[:128]:
             # PNTG format: data starts at offset 0x280 (640 bytes)
             offset = 0x280
         elif data_len > 512:
             # Standard MacPaint: 512-byte header
             # Check if this looks like a valid header by examining first bytes
             # MacPaint header typically starts with version number (0, 2, or 3)
-            if file_data[0] in (0, 2, 3) or file_data[:4] == b'\x00\x00\x00\x00':
+            if file_data[0] in (0, 2, 3) or file_data[:4] == b"\x00\x00\x00\x00":
                 offset = 512
             else:
                 # Try to auto-detect: check if data at offset 0 looks like PackBits
@@ -106,7 +107,10 @@ def convert_mac_to_ppm(input_image_stream):
 
         # Also check: if remaining data is close to expected uncompressed size,
         # it's probably uncompressed
-        if len(image_data) >= expected_bytes - 100 and len(image_data) <= expected_bytes + 100:
+        if (
+            len(image_data) >= expected_bytes - 100
+            and len(image_data) <= expected_bytes + 100
+        ):
             is_compressed = False
 
         if is_compressed:
@@ -119,7 +123,7 @@ def convert_mac_to_ppm(input_image_stream):
                 bitmap = image_data[:expected_bytes]
 
         # Write PPM header
-        out.write(f"P6\n{width} {height}\n255\n".encode('ascii'))
+        out.write(f"P6\n{width} {height}\n255\n".encode("ascii"))
 
         # Convert bitmap to RGB (1=black, 0=white for MacPaint)
         for y in range(height):

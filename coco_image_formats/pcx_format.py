@@ -4,6 +4,7 @@ PCX (PC Paintbrush) image format converter.
 
 import struct
 from io import BytesIO
+
 from .utils import pack
 
 
@@ -67,18 +68,18 @@ def convert_pcx_to_ppm(input_image_stream):
             return None, 0, 0
 
         # Parse header
-        manufacturer = header[0]
-        version = header[1]
-        encoding = header[2]
+        _manufacturer = header[0]
+        _version = header[1]
+        _encoding = header[2]
         bits_per_pixel = header[3]
 
-        x_min = struct.unpack('<H', header[4:6])[0]
-        y_min = struct.unpack('<H', header[6:8])[0]
-        x_max = struct.unpack('<H', header[8:10])[0]
-        y_max = struct.unpack('<H', header[10:12])[0]
+        x_min = struct.unpack("<H", header[4:6])[0]
+        y_min = struct.unpack("<H", header[6:8])[0]
+        x_max = struct.unpack("<H", header[8:10])[0]
+        y_max = struct.unpack("<H", header[10:12])[0]
 
-        h_dpi = struct.unpack('<H', header[12:14])[0]
-        v_dpi = struct.unpack('<H', header[14:16])[0]
+        _h_dpi = struct.unpack("<H", header[12:14])[0]
+        _v_dpi = struct.unpack("<H", header[14:16])[0]
 
         # 16-color EGA palette (48 bytes at offset 16)
         ega_palette = []
@@ -90,8 +91,8 @@ def convert_pcx_to_ppm(input_image_stream):
 
         # reserved byte at 64
         num_planes = header[65]
-        bytes_per_line = struct.unpack('<H', header[66:68])[0]
-        palette_info = struct.unpack('<H', header[68:70])[0]
+        bytes_per_line = struct.unpack("<H", header[66:68])[0]
+        _palette_info = struct.unpack("<H", header[68:70])[0]
 
         # Calculate dimensions
         width = x_max - x_min + 1
@@ -123,7 +124,7 @@ def convert_pcx_to_ppm(input_image_stream):
                 vga_palette.append((r, g, b))
 
         # Write PPM header
-        out.write(f"P6\n{width} {height}\n255\n".encode('ascii'))
+        out.write(f"P6\n{width} {height}\n255\n".encode("ascii"))
 
         # Convert based on format
         if bits_per_pixel == 1 and num_planes == 1:
@@ -154,7 +155,7 @@ def convert_pcx_to_ppm(input_image_stream):
                         plane_offset = row_start + plane * bytes_per_line
                         byte_val = decoded[plane_offset + byte_idx]
                         bit = (byte_val >> bit_idx) & 1
-                        color_idx |= (bit << plane)
+                        color_idx |= bit << plane
 
                     r, g, b = ega_palette[color_idx & 0x0F]
                     out.write(pack([r, g, b]))
@@ -184,7 +185,9 @@ def convert_pcx_to_ppm(input_image_stream):
 
         else:
             # Unsupported format - try to handle as 8-bit indexed
-            print(f"Warning: Unusual PCX format (bpp={bits_per_pixel}, planes={num_planes})")
+            print(
+                f"Warning: Unusual PCX format (bpp={bits_per_pixel}, planes={num_planes})"
+            )
             palette = vga_palette if vga_palette else ega_palette
             for y in range(height):
                 row_start = y * scanline_bytes

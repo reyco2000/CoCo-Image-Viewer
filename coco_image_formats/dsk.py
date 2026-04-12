@@ -3,13 +3,14 @@ TRS-80 Color Computer DSK/JVC disk image handler.
 """
 
 import struct
-from typing import Optional, List, Tuple
 from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
 
 @dataclass
 class JVCHeader:
     """JVC disk image header structure"""
+
     sectors_per_track: int = 18
     side_count: int = 1
     sector_size: int = 256
@@ -21,6 +22,7 @@ class JVCHeader:
 @dataclass
 class DirectoryEntry:
     """DECB directory entry structure"""
+
     filename: str
     extension: str
     file_type: int
@@ -45,14 +47,14 @@ class DSKImage:
     def __init__(self, filename: str):
         self.filename = filename
         self.header = JVCHeader()
-        self.data = b''
+        self.data = b""
         self.fat = []
         self.directory = []
 
     def mount(self) -> bool:
         """Mount (open and parse) a DSK/JVC image file"""
         try:
-            with open(self.filename, 'rb') as f:
+            with open(self.filename, "rb") as f:
                 self.data = f.read()
             self._parse_jvc_header()
             self._read_fat()
@@ -91,7 +93,7 @@ class DSKImage:
     def read_sector(self, track: int, sector: int) -> bytes:
         """Read a specific sector from the disk image"""
         offset = self._get_sector_offset(track, sector)
-        return self.data[offset:offset + self.SECTOR_SIZE]
+        return self.data[offset : offset + self.SECTOR_SIZE]
 
     def _read_fat(self):
         """Read the File Allocation Table from track 17, sector 2"""
@@ -105,7 +107,7 @@ class DSKImage:
             sector_data = self.read_sector(self.DIR_TRACK, sector_num)
             for i in range(8):
                 offset = i * self.ENTRY_SIZE
-                entry_data = sector_data[offset:offset + self.ENTRY_SIZE]
+                entry_data = sector_data[offset : offset + self.ENTRY_SIZE]
                 if entry_data[0] not in (0x00, 0xFF):
                     entry = self._parse_directory_entry(entry_data)
                     if entry:
@@ -115,12 +117,12 @@ class DSKImage:
         """Parse a 32-byte directory entry"""
         if len(data) != self.ENTRY_SIZE:
             return None
-        filename = data[0x00:0x08].decode('ascii', errors='ignore').rstrip()
-        extension = data[0x08:0x0B].decode('ascii', errors='ignore').rstrip()
+        filename = data[0x00:0x08].decode("ascii", errors="ignore").rstrip()
+        extension = data[0x08:0x0B].decode("ascii", errors="ignore").rstrip()
         file_type = data[0x0B]
         ascii_flag = data[0x0C]
         first_granule = data[0x0D]
-        last_sector_bytes = struct.unpack('>H', data[0x0E:0x10])[0]
+        last_sector_bytes = struct.unpack(">H", data[0x0E:0x10])[0]
         if first_granule > 67:
             return None
         return DirectoryEntry(
@@ -129,7 +131,7 @@ class DSKImage:
             file_type=file_type,
             ascii_flag=ascii_flag,
             first_granule=first_granule,
-            last_sector_bytes=last_sector_bytes
+            last_sector_bytes=last_sector_bytes,
         )
 
     def _get_granule_chain(self, first_granule: int) -> List[Tuple[int, int]]:
@@ -139,7 +141,7 @@ class DSKImage:
         while current_granule != 0xFF:
             fat_entry = self.fat[current_granule]
             if 0xC0 <= fat_entry <= 0xC9:
-                sectors_used = (fat_entry & 0x0F)
+                sectors_used = fat_entry & 0x0F
                 if sectors_used == 0:
                     sectors_used = self.GRANULE_SECTORS
                 chain.append((current_granule, sectors_used))

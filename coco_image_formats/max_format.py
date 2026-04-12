@@ -3,12 +3,12 @@ MAX (CoCo MAX) image format converter.
 """
 
 from io import BytesIO
-from .utils import getbit, pack, clip
+
+from .utils import clip, getbit, pack
 
 
 def convert_max_to_ppm(
-    input_image_stream,
-    arte, newsroom, cols, rows, skip, ignore_header_errors
+    input_image_stream, arte, newsroom, cols, rows, skip, ignore_header_errors
 ):
     """Convert MAX format to PPM.
 
@@ -25,8 +25,8 @@ def convert_max_to_ppm(
         Tuple of (ppm_data, width, height) or (None, None, None) on error
     """
     br2 = [pack(x) for x in [[0, 0, 0], [255, 85, 0], [0, 170, 255], [255, 255, 255]]]
-    br3 = [pack(x) for x in [[0, 0, 0], [255, 0, 0], [0, 0, 255], [255, 255, 255]]]
-    semig = [
+    _br3 = [pack(x) for x in [[0, 0, 0], [255, 0, 0], [0, 0, 255], [255, 255, 255]]]
+    _semig = [
         pack(x)
         for x in [
             [0, 0, 0],
@@ -63,7 +63,7 @@ def convert_max_to_ppm(
                 if not ignore_header_errors:
                     return None, None, None
 
-    out.write(f"P6\n{cols} {rows}\n255\n".encode('ascii'))
+    out.write(f"P6\n{cols} {rows}\n255\n".encode("ascii"))
     for jj in range(rows):
         row_data = f.read(cols >> 3)
         oy = r2 = g2 = b2 = 0

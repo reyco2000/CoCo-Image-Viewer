@@ -1,0 +1,19 @@
+{
+  "scheme": "custom",
+  "schemeDefinition": "major.minor[.build][->patch]",
+  "versionFile": "./package.json",
+  "files": [{
+      "path": "./pyproject.toml",
+      "line": 3
+  }, {
+      "path": "./coco_image_formats/__init__.py",
+      "line": 38
+  }],
+  "rules": [{
+      "trigger": "manual",
+      "bump": "minor",
+      "branch": "main",
+      "reset": "build",
+      "tag": false
+  }]
+}

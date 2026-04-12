@@ -1,0 +1,71 @@
+[project]
+name = "coco-image-viewer-jamie"
+version = "1.5.0"
+authors = [
+  {name = "Jamie Cho", email = "jamieleecho@gmail.com"},
+]
+description = "TRS-80 Color Computer Image Viewer and Format Converter"
+readme = "README.md"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Topic :: Multimedia :: Graphics :: Viewers",
+  "Programming Language :: Python :: 3",
+]
+license = "MIT"
+keywords = [
+  "coco",
+  "image",
+  "viewer",
+  "conversion",
+  "trs-80",
+  "tandy",
+  "retro",
+]
+requires-python = ">=3.10"
+dependencies = [
+  "Pillow>=7.0.0",
+  "PyQt6>=6.0.0",
+]
+
+[project.scripts]
+coco-image-viewer = "main_new:main"
+
+[project.urls]
+Repository = "https://github.com/reyco2000/CoCo-Image-Viewer"
+Issues = "https://github.com/reyco2000/CoCo-Image-Viewer/issues"
+
+[dependency-groups]
+dev = [
+  "coverage",
+  "pytest",
+  "pre-commit",
+  "ruff",
+]
+
+[build-system]
+requires = [
+  "setuptools",
+  "wheel",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["tests"]
+
+[tool.setuptools.package-dir]
+"" = "."
+
+[tool.pytest.ini_options]
+rootdir = "."
+pythonpath = [
+  ".",
+]
+
+[tool.ruff]
+exclude = [
+  "docs/",
+]
+
+[tool.ruff.lint]
+extend-select = ["I"]

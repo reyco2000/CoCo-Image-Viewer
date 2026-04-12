@@ -8,6 +8,7 @@ Atari ST graphics modes.
 
 import struct
 from io import BytesIO
+
 from .utils import pack
 
 
@@ -61,27 +62,27 @@ def decode_tny(data: bytes):
     for i in range(16):
         if pos + 2 > len(data):
             return None, 0, 0, None
-        color_word = struct.unpack('>H', data[pos:pos+2])[0]
+        color_word = struct.unpack(">H", data[pos : pos + 2])[0]
         pos += 2
 
         # Extract 3-bit color components
         r = ((color_word >> 8) & 0x07) * 36  # Bits 8-6
         g = ((color_word >> 4) & 0x07) * 36  # Bits 4-2
-        b = (color_word & 0x07) * 36         # Bits 2-0
+        b = (color_word & 0x07) * 36  # Bits 2-0
         palette.append((r, g, b))
 
     # Read counts
     if pos + 4 > len(data):
         return None, 0, 0, None
-    control_count = struct.unpack('>H', data[pos:pos+2])[0]
+    control_count = struct.unpack(">H", data[pos : pos + 2])[0]
     pos += 2
-    data_count = struct.unpack('>H', data[pos:pos+2])[0]
+    data_count = struct.unpack(">H", data[pos : pos + 2])[0]
     pos += 2
 
     # Read control bytes
     if pos + control_count > len(data):
         return None, 0, 0, None
-    control_bytes = data[pos:pos+control_count]
+    control_bytes = data[pos : pos + control_count]
     pos += control_count
 
     # Read data words
@@ -89,7 +90,7 @@ def decode_tny(data: bytes):
         return None, 0, 0, None
     data_words = []
     for i in range(data_count):
-        word = struct.unpack('>H', data[pos:pos+2])[0]
+        word = struct.unpack(">H", data[pos : pos + 2])[0]
         pos += 2
         data_words.append(word)
 
@@ -100,7 +101,7 @@ def decode_tny(data: bytes):
 
     while control_pos < len(control_bytes):
         # Read control byte as signed
-        control = struct.unpack('b', bytes([control_bytes[control_pos]]))[0]
+        control = struct.unpack("b", bytes([control_bytes[control_pos]]))[0]
         control_pos += 1
 
         if control < 0:
@@ -114,7 +115,9 @@ def decode_tny(data: bytes):
         elif control == 0:
             # Read 16-bit count from control section, repeat next data word
             if control_pos + 2 <= len(control_bytes):
-                count = struct.unpack('>H', control_bytes[control_pos:control_pos+2])[0]
+                count = struct.unpack(
+                    ">H", control_bytes[control_pos : control_pos + 2]
+                )[0]
                 control_pos += 2
                 if data_pos < len(data_words):
                     word = data_words[data_pos]
@@ -124,7 +127,9 @@ def decode_tny(data: bytes):
         elif control == 1:
             # Read 16-bit count from control section, copy unique words
             if control_pos + 2 <= len(control_bytes):
-                count = struct.unpack('>H', control_bytes[control_pos:control_pos+2])[0]
+                count = struct.unpack(
+                    ">H", control_bytes[control_pos : control_pos + 2]
+                )[0]
                 control_pos += 2
                 for _ in range(count):
                     if data_pos < len(data_words):
@@ -156,12 +161,14 @@ def decode_tny(data: bytes):
     # Convert words to bytes (big-endian)
     output_bytes = bytearray()
     for word in screen_words:
-        output_bytes.extend(struct.pack('>H', word))
+        output_bytes.extend(struct.pack(">H", word))
 
     return bytes(output_bytes), width, height, palette
 
 
-def decode_atari_st_bitplanes(data: bytes, width: int, height: int, palette: list, num_planes: int):
+def decode_atari_st_bitplanes(
+    data: bytes, width: int, height: int, palette: list, num_planes: int
+):
     """Decode Atari ST interleaved bitplane format to RGB.
 
     Atari ST uses interleaved bitplanes, NOT packed pixels.
@@ -177,7 +184,7 @@ def decode_atari_st_bitplanes(data: bytes, width: int, height: int, palette: lis
         BytesIO containing PPM P6 format data
     """
     out = BytesIO()
-    out.write(f"P6\n{width} {height}\n255\n".encode('ascii'))
+    out.write(f"P6\n{width} {height}\n255\n".encode("ascii"))
 
     if num_planes == 1:
         # High resolution (640x400, monochrome, 1 bitplane)
@@ -211,9 +218,11 @@ def decode_atari_st_bitplanes(data: bytes, width: int, height: int, palette: lis
                     word_offset = scanline_offset + (word_index * 4) + (plane * 2)
 
                     if word_offset + 1 < len(data):
-                        word = struct.unpack('>H', data[word_offset:word_offset+2])[0]
+                        word = struct.unpack(">H", data[word_offset : word_offset + 2])[
+                            0
+                        ]
                         bit = (word >> bit_index) & 1
-                        pixel_value |= (bit << plane)
+                        pixel_value |= bit << plane
 
                 if pixel_value < len(palette):
                     r, g, b = palette[pixel_value]
@@ -238,9 +247,11 @@ def decode_atari_st_bitplanes(data: bytes, width: int, height: int, palette: lis
                     word_offset = scanline_offset + (word_index * 8) + (plane * 2)
 
                     if word_offset + 1 < len(data):
-                        word = struct.unpack('>H', data[word_offset:word_offset+2])[0]
+                        word = struct.unpack(">H", data[word_offset : word_offset + 2])[
+                            0
+                        ]
                         bit = (word >> bit_index) & 1
-                        pixel_value |= (bit << plane)
+                        pixel_value |= bit << plane
 
                 if pixel_value < len(palette):
                     r, g, b = palette[pixel_value]
@@ -281,7 +292,9 @@ def convert_tny_to_ppm(input_image_stream):
             return None, 0, 0
 
         # Decode bitplanes to RGB
-        ppm_data = decode_atari_st_bitplanes(raw_data, width, height, palette, num_planes)
+        ppm_data = decode_atari_st_bitplanes(
+            raw_data, width, height, palette, num_planes
+        )
 
         return ppm_data, width, height
 

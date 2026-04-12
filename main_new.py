@@ -2,46 +2,74 @@
 CoCo Image Viewer - PyQt6 GUI and CLI for viewing vintage image formats from DSK images.
 """
 
-import sys
 import argparse
+import sys
 from io import BytesIO
+
 from PIL import Image
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QListWidget, QLabel, QFileDialog, QScrollArea,
-    QSplitter, QFrame, QStatusBar, QLineEdit, QSlider, QCheckBox,
-    QListWidgetItem
-)
-from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QSplitter,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Import from the coco_image_formats library
 from coco_image_formats import (
     DSKImage,
-    convert_max_to_ppm,
-    convert_cm3_to_ppm,
-    convert_mge_to_ppm,
-    convert_mac_to_ppm,
-    convert_pcx_to_ppm,
     convert_clp_to_ppm,
-    convert_tny_to_ppm,
-    convert_nib_to_ppm,
-    convert_img_to_ppm,
+    convert_cm3_to_ppm,
     convert_hr_to_ppm,
+    convert_img_to_ppm,
+    convert_mac_to_ppm,
+    convert_max_to_ppm,
+    convert_mge_to_ppm,
+    convert_nib_to_ppm,
+    convert_pcx_to_ppm,
+    convert_tny_to_ppm,
 )
 
 # Supported image extensions
-SUPPORTED_EXTENSIONS = {'MAX', 'CM3', 'CLP', 'MGE', 'MAC', 'PCX', 'GIF', 'TNY', 'TN1', 'TN2', 'TN3', 'NIB', 'IMG'}
+SUPPORTED_EXTENSIONS = {
+    "MAX",
+    "CM3",
+    "CLP",
+    "MGE",
+    "MAC",
+    "PCX",
+    "GIF",
+    "TNY",
+    "TN1",
+    "TN2",
+    "TN3",
+    "NIB",
+    "IMG",
+}
 
 
 def pil_to_qpixmap(pil_image):
     """Convert PIL Image to QPixmap."""
     # Convert PIL image to RGB if necessary
-    if pil_image.mode != 'RGB':
-        pil_image = pil_image.convert('RGB')
+    if pil_image.mode != "RGB":
+        pil_image = pil_image.convert("RGB")
 
     # Get image data
-    data = pil_image.tobytes('raw', 'RGB')
+    data = pil_image.tobytes("raw", "RGB")
     width, height = pil_image.size
 
     # Create QImage from data
@@ -54,7 +82,7 @@ def pil_to_qpixmap(pil_image):
 class ImageViewer(QMainWindow):
     # Zoom scale options
     ZOOM_SCALES = [0.25, 0.50, 1.0, 1.25, 1.50, 2.0]
-    ZOOM_LABELS = ['0.25x', '0.50x', '1x', '1.25x', '1.50x', '2x']
+    ZOOM_LABELS = ["0.25x", "0.50x", "1x", "1.25x", "1.50x", "2x"]
 
     def __init__(self):
         super().__init__()
@@ -69,7 +97,9 @@ class ImageViewer(QMainWindow):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("CoCo Image Viewer (MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB/IMG/HR*)")
+        self.setWindowTitle(
+            "CoCo Image Viewer (MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB/IMG/HR*)"
+        )
         self.setGeometry(100, 100, 1000, 800)
 
         # Create central widget
@@ -192,10 +222,7 @@ class ImageViewer(QMainWindow):
 
     def open_dsk(self):
         filepath, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open DSK File",
-            "",
-            "DSK files (*.DSK *.dsk);;All files (*.*)"
+            self, "Open DSK File", "", "DSK files (*.DSK *.dsk);;All files (*.*)"
         )
         if not filepath:
             return
@@ -208,7 +235,11 @@ class ImageViewer(QMainWindow):
             # Store all files
             self.all_files = []
             for entry in self.dsk.directory:
-                filename = f"{entry.filename}.{entry.extension}" if entry.extension else entry.filename
+                filename = (
+                    f"{entry.filename}.{entry.extension}"
+                    if entry.extension
+                    else entry.filename
+                )
                 self.all_files.append((filename, entry))
 
             # Update file list based on filter
@@ -217,7 +248,9 @@ class ImageViewer(QMainWindow):
             # Enable Export All button
             self.btn_export_all.setEnabled(True)
 
-            self.status_bar.showMessage(f"Loaded: {filepath} ({len(self.dsk.directory)} files)")
+            self.status_bar.showMessage(
+                f"Loaded: {filepath} ({len(self.dsk.directory)} files)"
+            )
         else:
             self.status_bar.showMessage("Failed to load DSK file")
             self.path_edit.setText("")
@@ -233,7 +266,11 @@ class ImageViewer(QMainWindow):
         for filename, entry in self.all_files:
             ext = entry.extension.upper() if entry.extension else ""
 
-            if filter_enabled and ext not in SUPPORTED_EXTENSIONS and not ext.startswith("HR"):
+            if (
+                filter_enabled
+                and ext not in SUPPORTED_EXTENSIONS
+                and not ext.startswith("HR")
+            ):
                 continue
 
             item = QListWidgetItem(filename)
@@ -245,7 +282,9 @@ class ImageViewer(QMainWindow):
         visible_count = self.file_list.count()
         total_count = len(self.all_files)
         if filter_enabled:
-            self.status_bar.showMessage(f"Showing {visible_count} of {total_count} files (filtered)")
+            self.status_bar.showMessage(
+                f"Showing {visible_count} of {total_count} files (filtered)"
+            )
         else:
             self.status_bar.showMessage(f"Showing {total_count} files")
 
@@ -281,8 +320,14 @@ class ImageViewer(QMainWindow):
 
         # Resize image
         if new_width != orig_width or new_height != orig_height:
-            resample = Image.Resampling.NEAREST if self.current_scale >= 1.0 else Image.Resampling.LANCZOS
-            scaled_image = self.current_pil_image.resize((new_width, new_height), resample)
+            resample = (
+                Image.Resampling.NEAREST
+                if self.current_scale >= 1.0
+                else Image.Resampling.LANCZOS
+            )
+            scaled_image = self.current_pil_image.resize(
+                (new_width, new_height), resample
+            )
         else:
             scaled_image = self.current_pil_image
 
@@ -324,18 +369,18 @@ class ImageViewer(QMainWindow):
             self,
             "Export Image as PNG",
             default_name,
-            "PNG files (*.png);;All files (*.*)"
+            "PNG files (*.png);;All files (*.*)",
         )
 
         if not filepath:
             return
 
         # Ensure .png extension
-        if not filepath.lower().endswith('.png'):
-            filepath += '.png'
+        if not filepath.lower().endswith(".png"):
+            filepath += ".png"
 
         try:
-            self.current_pil_image.save(filepath, 'PNG')
+            self.current_pil_image.save(filepath, "PNG")
             width, height = self.current_pil_image.size
             self.status_bar.showMessage(f"Exported: {filepath} ({width}x{height})")
         except Exception as e:
@@ -349,8 +394,7 @@ class ImageViewer(QMainWindow):
 
         # Ask user for output directory
         output_dir = QFileDialog.getExistingDirectory(
-            self,
-            "Select Output Directory for PNG Export"
+            self, "Select Output Directory for PNG Export"
         )
 
         if not output_dir:
@@ -377,7 +421,9 @@ class ImageViewer(QMainWindow):
 
                 # Convert based on format
                 if ext == "MAX":
-                    ppm_data, width, height = convert_max_to_ppm(data, 1, False, 256, None, 0, True)
+                    ppm_data, width, height = convert_max_to_ppm(
+                        data, 1, False, 256, None, 0, True
+                    )
                     if ppm_data:
                         pil_image = Image.open(BytesIO(ppm_data))
 
@@ -408,8 +454,8 @@ class ImageViewer(QMainWindow):
 
                 elif ext == "GIF":
                     pil_image = Image.open(BytesIO(data))
-                    if pil_image.mode != 'RGB':
-                        pil_image = pil_image.convert('RGB')
+                    if pil_image.mode != "RGB":
+                        pil_image = pil_image.convert("RGB")
 
                 elif ext in ["TNY", "TN1", "TN2", "TN3"]:
                     ppm_data, width, height = convert_tny_to_ppm(data)
@@ -432,25 +478,36 @@ class ImageViewer(QMainWindow):
                         base_name = entry.filename
                         for i in range(4):
                             hr_ext = f"HR{i}"
-                            part_entry = next((e for fn, e in self.all_files if e.filename == base_name and (e.extension.upper() if e.extension else "") == hr_ext), None)
+                            part_entry = next(
+                                (
+                                    e
+                                    for fn, e in self.all_files
+                                    if e.filename == base_name
+                                    and (e.extension.upper() if e.extension else "")
+                                    == hr_ext
+                                ),
+                                None,
+                            )
                             if part_entry:
                                 part_data = self.dsk.extract_file(part_entry)
                                 if part_data:
                                     combined_data.extend(part_data)
                         if combined_data:
-                            ppm_data, width, height = convert_hr_to_ppm(bytes(combined_data))
+                            ppm_data, width, height = convert_hr_to_ppm(
+                                bytes(combined_data)
+                            )
                             if ppm_data:
                                 pil_image = Image.open(BytesIO(ppm_data))
-                                ext = "HR" # Save it uniformly as filename_HR.png
+                                ext = "HR"  # Save it uniformly as filename_HR.png
                     else:
-                        continue # Skip other sequence parts so we don't duplicate exports
+                        continue  # Skip other sequence parts so we don't duplicate exports
 
                 # Save the image
                 if pil_image:
                     # Format: FILENAME_EXTType.png
                     output_filename = f"{entry.filename}_{ext}.png"
                     output_path = f"{output_dir}/{output_filename}"
-                    pil_image.save(output_path, 'PNG')
+                    pil_image.save(output_path, "PNG")
                     exported_count += 1
                 else:
                     error_count += 1
@@ -488,7 +545,9 @@ class ImageViewer(QMainWindow):
             if extension == "MAX":
                 data = self.dsk.extract_file(selected_entry)
                 if data:
-                    ppm_data, width, height = convert_max_to_ppm(data, 1, False, 256, None, 0, True)
+                    ppm_data, width, height = convert_max_to_ppm(
+                        data, 1, False, 256, None, 0, True
+                    )
                     if ppm_data:
                         img = Image.open(BytesIO(ppm_data))
                         self.display_image(img)
@@ -545,8 +604,8 @@ class ImageViewer(QMainWindow):
                 data = self.dsk.extract_file(selected_entry)
                 if data:
                     img = Image.open(BytesIO(data))
-                    if img.mode != 'RGB':
-                        img = img.convert('RGB')
+                    if img.mode != "RGB":
+                        img = img.convert("RGB")
                     self.display_image(img)
 
             elif extension in ["TNY", "TN1", "TN2", "TN3"]:
@@ -584,12 +643,20 @@ class ImageViewer(QMainWindow):
                 combined_data = bytearray()
                 for i in range(4):
                     hr_ext = f"HR{i}"
-                    part_entry = next((e for fn, e in self.all_files if e.filename == base_name and (e.extension.upper() if e.extension else "") == hr_ext), None)
+                    part_entry = next(
+                        (
+                            e
+                            for fn, e in self.all_files
+                            if e.filename == base_name
+                            and (e.extension.upper() if e.extension else "") == hr_ext
+                        ),
+                        None,
+                    )
                     if part_entry:
                         part_data = self.dsk.extract_file(part_entry)
                         if part_data:
                             combined_data.extend(part_data)
-                
+
                 if combined_data:
                     ppm_data, width, height = convert_hr_to_ppm(bytes(combined_data))
                     if ppm_data:
@@ -610,6 +677,7 @@ class ImageViewer(QMainWindow):
 
 # --- CLI Application ---
 
+
 def run_gui():
     """Launch the PyQt6 GUI application."""
     app = QApplication(sys.argv)
@@ -619,15 +687,19 @@ def run_gui():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CoCo Image Viewer - MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB/IMG/HR* DSK Tool (PyQt6)")
+    parser = argparse.ArgumentParser(
+        description="CoCo Image Viewer - MAX/CM3/CLP/MGE/MAC/PCX/GIF/TNY/NIB/IMG/HR* DSK Tool (PyQt6)"
+    )
     subparsers = parser.add_subparsers(dest="command")
 
-    gui_parser = subparsers.add_parser("gui", help="Launch the GUI application")
+    _gui_parser = subparsers.add_parser("gui", help="Launch the GUI application")
 
     list_parser = subparsers.add_parser("list", help="List files in a DSK image")
     list_parser.add_argument("dsk_file", help="Path to the DSK file")
 
-    extract_parser = subparsers.add_parser("extract", help="Extract and convert an image file to PNG")
+    extract_parser = subparsers.add_parser(
+        "extract", help="Extract and convert an image file to PNG"
+    )
     extract_parser.add_argument("dsk_file", help="Path to the DSK file")
     extract_parser.add_argument("image_file", help="Name of the image file to extract")
     extract_parser.add_argument("png_file", help="Path to save the output PNG file")
@@ -641,7 +713,11 @@ def main():
         dsk = DSKImage(args.dsk_file)
         if dsk.mount():
             for entry in dsk.directory:
-                filename = f"{entry.filename}.{entry.extension}" if entry.extension else entry.filename
+                filename = (
+                    f"{entry.filename}.{entry.extension}"
+                    if entry.extension
+                    else entry.filename
+                )
                 print(filename)
 
     elif args.command == "extract":
@@ -649,7 +725,11 @@ def main():
         if dsk.mount():
             entry_to_extract = None
             for entry in dsk.directory:
-                filename = f"{entry.filename}.{entry.extension}" if entry.extension else entry.filename
+                filename = (
+                    f"{entry.filename}.{entry.extension}"
+                    if entry.extension
+                    else entry.filename
+                )
                 if filename.upper() == args.image_file.upper():
                     entry_to_extract = entry
                     break
@@ -662,7 +742,9 @@ def main():
                     width = height = 0
 
                     if extension == "MAX":
-                        ppm_data, width, height = convert_max_to_ppm(image_data, 1, False, 256, None, 0, True)
+                        ppm_data, width, height = convert_max_to_ppm(
+                            image_data, 1, False, 256, None, 0, True
+                        )
                     elif extension == "CM3":
                         ppm_data, width, height = convert_cm3_to_ppm(image_data)
                     elif extension == "CLP":
@@ -685,8 +767,10 @@ def main():
                         try:
                             img = Image.open(BytesIO(image_data))
                             width, height = img.size
-                            img.save(args.png_file, 'PNG')
-                            print(f"Saved GIF image as {args.png_file} ({width}x{height})")
+                            img.save(args.png_file, "PNG")
+                            print(
+                                f"Saved GIF image as {args.png_file} ({width}x{height})"
+                            )
                         except Exception as e:
                             print(f"Error converting GIF to PNG: {e}")
                         ppm_data = None
@@ -707,13 +791,24 @@ def main():
                         combined_data = bytearray()
                         for i in range(4):
                             hr_ext = f"HR{i}"
-                            part_entry = next((e for e in dsk.directory if e.filename == base_name and (e.extension.upper() if e.extension else "") == hr_ext), None)
+                            part_entry = next(
+                                (
+                                    e
+                                    for e in dsk.directory
+                                    if e.filename == base_name
+                                    and (e.extension.upper() if e.extension else "")
+                                    == hr_ext
+                                ),
+                                None,
+                            )
                             if part_entry:
                                 part_data = dsk.extract_file(part_entry)
                                 if part_data:
                                     combined_data.extend(part_data)
                         if combined_data:
-                            ppm_data, width, height = convert_hr_to_ppm(bytes(combined_data))
+                            ppm_data, width, height = convert_hr_to_ppm(
+                                bytes(combined_data)
+                            )
                             if not ppm_data:
                                 print("Failed to convert HR sequence")
                         else:
@@ -725,8 +820,10 @@ def main():
                     if ppm_data:
                         try:
                             img = Image.open(BytesIO(ppm_data))
-                            img.save(args.png_file, 'PNG')
-                            print(f"Saved {extension} image as {args.png_file} ({width}x{height})")
+                            img.save(args.png_file, "PNG")
+                            print(
+                                f"Saved {extension} image as {args.png_file} ({width}x{height})"
+                            )
                         except Exception as e:
                             print(f"Error converting to PNG: {e}")
                 else:

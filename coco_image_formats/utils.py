@@ -2,7 +2,6 @@
 Shared utility functions for image format conversion.
 """
 
-from io import BytesIO
 
 
 def getbit(v: int, b: int) -> int:

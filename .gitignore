@@ -23,6 +23,20 @@ ENV/
 Thumbs.db
 nul
 
+# uv
+uv.lock
+.cache/
+
+# Node (version bumper)
+node_modules/
+
+# Ruff
+.ruff_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
 # Generated output files
 output*.png
 test*.png

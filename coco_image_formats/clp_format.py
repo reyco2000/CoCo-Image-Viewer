@@ -4,6 +4,7 @@ CLP (MAX-10 clipboard picture) image format converter.
 
 import struct
 from io import BytesIO
+
 from .utils import pack
 
 
@@ -27,22 +28,22 @@ def convert_clp_to_ppm(input_image_stream):
 
     # Parse 11-byte header
     # 2 bytes: word boundary flags (start, end)
-    word_start, word_end = struct.unpack('>BB', f.read(2))
+    word_start, word_end = struct.unpack(">BB", f.read(2))
 
     # 2 bytes: paragraph count
-    para_count = struct.unpack('>H', f.read(2))[0]
+    _para_count = struct.unpack(">H", f.read(2))[0]
 
     # 2 bytes: estimated memory size
-    mem_size = struct.unpack('>H', f.read(2))[0]
+    _mem_size = struct.unpack(">H", f.read(2))[0]
 
     # 1 byte: string only flag
-    string_only = struct.unpack('B', f.read(1))[0]
+    _string_only = struct.unpack("B", f.read(1))[0]
 
     # 2 bytes: first paragraph size
-    first_para = struct.unpack('>H', f.read(2))[0]
+    _first_para = struct.unpack(">H", f.read(2))[0]
 
     # 2 bytes: last string size
-    last_string = struct.unpack('>H', f.read(2))[0]
+    _last_string = struct.unpack(">H", f.read(2))[0]
 
     # Parse paragraphs to find picture (tag 1)
     cols = rows = 0
@@ -56,38 +57,40 @@ def convert_clp_to_ppm(input_image_stream):
             break
         elif tag == 1:  # Picture paragraph
             # 2 bytes: paragraph size
-            para_size = struct.unpack('>H', f.read(2))[0]
+            _para_size = struct.unpack(">H", f.read(2))[0]
 
             # 2 bytes: left position (8-576 pixels)
-            left_pos = struct.unpack('>H', f.read(2))[0]
+            _left_pos = struct.unpack(">H", f.read(2))[0]
 
             # 2 bytes: vertical size in lines
-            vert_size = struct.unpack('>H', f.read(2))[0]
+            _vert_size = struct.unpack(">H", f.read(2))[0]
 
             # 2 bytes: horizontal width
-            horiz_width = struct.unpack('>H', f.read(2))[0]
+            _horiz_width = struct.unpack(">H", f.read(2))[0]
 
             # 2 bytes: bit image height in lines
-            img_height = struct.unpack('>H', f.read(2))[0]
+            img_height = struct.unpack(">H", f.read(2))[0]
 
             # 2 bytes: bit image width in pixels
-            img_width = struct.unpack('>H', f.read(2))[0]
+            img_width = struct.unpack(">H", f.read(2))[0]
 
             # 1 byte: bytes per line
-            line_bytes = struct.unpack('B', f.read(1))[0]
+            line_bytes = struct.unpack("B", f.read(1))[0]
 
             # Set dimensions
             cols = img_width
             rows = img_height
 
             # Write PPM header
-            out.write(f"P6\n{cols} {rows}\n255\n".encode('ascii'))
+            out.write(f"P6\n{cols} {rows}\n255\n".encode("ascii"))
 
             # Read and convert bitmap data
             # Format: 0=white (255,255,255), 1=black (0,0,0)
             for row in range(rows):
                 row_data = f.read(line_bytes)
-                for byte_idx in range((cols + 7) // 8):  # Process enough bytes for image width
+                for byte_idx in range(
+                    (cols + 7) // 8
+                ):  # Process enough bytes for image width
                     if byte_idx < len(row_data):
                         byte_val = row_data[byte_idx]
                         # Process each bit in the byte

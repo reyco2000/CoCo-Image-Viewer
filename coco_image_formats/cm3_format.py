@@ -3,6 +3,7 @@ CM3 (CoCoMax 3) image format converter.
 """
 
 from io import BytesIO
+
 from .utils import getbit, pack
 
 
@@ -35,12 +36,21 @@ def convert_cm3_to_ppm(input_image_stream):
         b = (getbit(c, 3) * 2 + getbit(c, 0)) * 85
         ppm_palette[i] = pack([r, g, b])
 
+<<<<<<< HEAD
     # Read animation and cycle data
     anirat = f.read(1)[0]
     cycrat = f.read(1)[0]
     cm3cyc = list(f.read(8))
     aniflg = (f.read(1)[0] & 0x80) != 0
     cycflg = (f.read(1)[0] & 0x80) != 0
+=======
+    # Read animation and cycle data (values unused but must advance stream)
+    _anirat = f.read(1)[0]
+    _cycrat = f.read(1)[0]
+    _cm3cyc = [f.read(1)[0] for _ in range(8)]
+    _aniflg = (f.read(1)[0] & 0x80) != 0
+    _cycflg = (f.read(1)[0] & 0x80) != 0
+>>>>>>> a628ae3 (Add typechecking and liting, automate package creation)
 
     # Skip motif data if present
     if not sans_motifs:
@@ -52,7 +62,7 @@ def convert_cm3_to_ppm(input_image_stream):
     buff2 = []
 
     # Write PPM header
-    out.write(f"P6\n{cols} {rows}\n255\n".encode('ascii'))
+    out.write(f"P6\n{cols} {rows}\n255\n".encode("ascii"))
 
     # Process image data
     for page in range(getbit(pictyp, 7) + 1):
