@@ -15,14 +15,6 @@ def convert_cm3_to_ppm(input_image_stream):
     Returns:
         Tuple of (ppm_data, width, height)
     """
-    def dump(palette_index, palette, out):
-        """Output RGB values for a palette index"""
-        c = palette[palette_index]
-        r = (getbit(c, 5) * 2 + getbit(c, 2)) * 85
-        g = (getbit(c, 4) * 2 + getbit(c, 1)) * 85
-        b = (getbit(c, 3) * 2 + getbit(c, 0)) * 85
-        out.write(pack([r, g, b]))
-
     f = BytesIO(input_image_stream)
     out = BytesIO()
 
@@ -33,12 +25,20 @@ def convert_cm3_to_ppm(input_image_stream):
     sans_motifs = getbit(pictyp, 0) != 0
 
     # Read palette (16 bytes)
-    palette = [f.read(1)[0] for _ in range(16)]
+    palette = list(f.read(16))
+
+    # Precalculate RGB tuples for the palette to save time in the loop
+    ppm_palette = [b""] * 16
+    for i, c in enumerate(palette):
+        r = (getbit(c, 5) * 2 + getbit(c, 2)) * 85
+        g = (getbit(c, 4) * 2 + getbit(c, 1)) * 85
+        b = (getbit(c, 3) * 2 + getbit(c, 0)) * 85
+        ppm_palette[i] = pack([r, g, b])
 
     # Read animation and cycle data
     anirat = f.read(1)[0]
     cycrat = f.read(1)[0]
-    cm3cyc = [f.read(1)[0] for _ in range(8)]
+    cm3cyc = list(f.read(8))
     aniflg = (f.read(1)[0] & 0x80) != 0
     cycflg = (f.read(1)[0] & 0x80) != 0
 
@@ -69,11 +69,8 @@ def convert_cm3_to_ppm(input_image_stream):
 
             if contr < 128:
                 # Compressed mode: read reference buffers
-                for k in range(20):
-                    buff1[k] = f.read(1)[0]
-                buff2 = []
-                for k in range(contr):
-                    buff2.append(f.read(1)[0])
+                buff1 = list(f.read(20))
+                buff2 = list(f.read(contr))
 
             # Decode 160 bytes (320 pixels, 2 pixels per byte)
             for k in range(160):
@@ -108,8 +105,8 @@ def convert_cm3_to_ppm(input_image_stream):
 
                 linbuf[x] = a
                 # Each byte contains 2 pixels (4 bits each)
-                dump(a >> 4, palette, out)  # High nibble
-                dump(a & 15, palette, out)  # Low nibble
+                out.write(ppm_palette[a >> 4])  # High nibble
+                out.write(ppm_palette[a & 15])  # Low nibble
                 x += 1
 
     return out.getvalue(), cols, rows

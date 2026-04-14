@@ -86,5 +86,23 @@ def convert_max_to_ppm(
                     r2 = r
                     g2 = g
                     b2 = b
+            elif arte == 3:  # PIXEL_MODE_BR2
+                for k in range(4):
+                    out.write(br2[getbit(v, 7 - k - k) * 2 + getbit(v, 6 - k - k)] * 2)
+            elif arte == 4:  # PIXEL_MODE_RB2
+                for k in range(4):
+                    out.write(br2[getbit(v, 7 - k - k) + getbit(v, 6 - k - k) * 2] * 2)
+            elif arte == 5:  # PIXEL_MODE_BR3
+                for k in range(4):
+                    out.write(br3[getbit(v, 7 - k - k) * 2 + getbit(v, 6 - k - k)] * 2)
+            elif arte == 6:  # PIXEL_MODE_RB3
+                for k in range(4):
+                    out.write(br3[getbit(v, 7 - k - k) + getbit(v, 6 - k - k) * 2] * 2)
+            elif arte == 7:  # PIXEL_MODE_S10
+                for k in range(4):
+                    out.write(semig[1 + getbit(v, 7 - k - k) + getbit(v, 6 - k - k) * 2] * 2)
+            elif arte == 8:  # PIXEL_MODE_S11
+                for k in range(4):
+                    out.write(semig[5 + getbit(v, 7 - k - k) + getbit(v, 6 - k - k) * 2] * 2)
 
     return out.getvalue(), cols, rows
