@@ -25,8 +25,8 @@ def convert_max_to_ppm(
         Tuple of (ppm_data, width, height) or (None, None, None) on error
     """
     br2 = [pack(x) for x in [[0, 0, 0], [255, 85, 0], [0, 170, 255], [255, 255, 255]]]
-    _br3 = [pack(x) for x in [[0, 0, 0], [255, 0, 0], [0, 0, 255], [255, 255, 255]]]
-    _semig = [
+    br3 = [pack(x) for x in [[0, 0, 0], [255, 0, 0], [0, 0, 255], [255, 255, 255]]]
+    semig = [
         pack(x)
         for x in [
             [0, 0, 0],

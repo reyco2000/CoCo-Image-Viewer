@@ -394,6 +394,69 @@ DSK Image → Extract File → Parse Format → Convert to PPM → Save as PNG
 
 ## Development
 
+### Using the Makefile
+
+The project includes a Makefile for common development tasks using [uv](https://docs.astral.sh/uv/), [ruff](https://docs.astral.sh/ruff/), and [ty](https://docs.astral.sh/ty/). Run `make help` to see all available targets.
+
+**Getting started:**
+
+```bash
+make sync          # Install/sync all dependencies
+make default       # Run all checks and tests
+```
+
+**Code quality:**
+
+```bash
+make check-all     # Run all checks (lock verification, linting, type checking)
+make check-lint    # Run ruff linter only
+make check-types   # Run ty type checker only
+make fix-all       # Auto-fix formatting, lint issues, and update lock
+make fix-format    # Auto-format code with ruff
+make fix-lint      # Auto-fix lint issues with ruff
+```
+
+**Building and testing:**
+
+```bash
+make run-tests     # Run pytest with coverage reporting
+make build-dist    # Build source distribution
+make install       # Install the package locally
+make run           # Launch the GUI viewer
+```
+
+**Other:**
+
+```bash
+make lock          # Update uv.lock
+make clean         # Remove build artifacts and caches
+```
+
+### Releasing a New Version to PyPI
+
+The project uses GitHub Actions to automate version bumping and PyPI publishing.
+
+**To create a new release:**
+
+1. Go to the repository's **Actions** tab on GitHub
+2. Select the **Bump Version and Start New Release** workflow
+3. Click **Run workflow** on the `main` branch
+4. This will automatically:
+   - Bump the minor version in `package.json`, `pyproject.toml`, and `coco_image_formats/__init__.py`
+   - Commit and tag the new version
+   - Trigger the **Make a New Release** workflow
+
+5. The release workflow will:
+   - Create a draft GitHub Release
+   - Build the distribution
+   - Publish the package to PyPI as `coco-image-viewer-jamie`
+
+6. Go to the repository's **Releases** page and edit the draft release:
+   - Add release notes describing what was updated
+   - Publish the release
+
+**Note:** PyPI publishing uses [trusted publishers](https://docs.pypi.org/trusted-publishers/) (OIDC). The repository must be configured as a trusted publisher on PyPI for the `coco-image-viewer-jamie` package.
+
 ### Testing
 
 ```bash
